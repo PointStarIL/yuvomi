@@ -80,8 +80,8 @@ function cityParam(city) {
 // ----------------------------------------------------------------
 export const OWM_LANGUAGES = new Set([
   'sq', 'af', 'ar', 'az', 'eu', 'be', 'bg', 'ca', 'zh_cn', 'zh_tw', 'hr', 'cz',
-  'da', 'nl', 'en', 'fi', 'fr', 'gl', 'de', 'el', 'he', 'hi', 'hu', 'is', 'id',
-  'it', 'ja', 'kr', 'ku', 'la', 'lt', 'mk', 'no', 'fa', 'pl', 'pt', 'pt_br',
+  'da', 'nl', 'en', 'fi', 'fr', 'gl', 'de', 'el', 'is', 'he', 'ku', 'hi', 'hu',
+  'lt', 'id', 'mk', 'it', 'ja', 'kr', 'la', 'no', 'fa', 'pl', 'pt', 'pt_br',
   'ro', 'ru', 'sr', 'sk', 'sl', 'sp', 'es', 'sv', 'se', 'th', 'tr', 'ua', 'uk',
   'vi', 'zu',
 ]);
@@ -100,6 +100,7 @@ export const OWM_LANG_BY_LOCALE = Object.freeze({
   fa: 'fa',
   fil: null,
   fr: 'fr',
+  he: 'he',
   hi: 'hi',
   hu: 'hu',
   id: 'id',

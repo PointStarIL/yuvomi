@@ -24,7 +24,8 @@
     "uk": 3,
     "vi": 6,
     "zh": 6,
-    "zh-Hant": 6
+    "zh-Hant": 6,
+    "he": 2
   },
   "installer": {
     "ar": 0,
@@ -51,6 +52,7 @@
     "uk": 0,
     "vi": 7,
     "zh": 0,
-    "zh-Hant": 0
+    "zh-Hant": 0,
+    "he": 8
   }
 }

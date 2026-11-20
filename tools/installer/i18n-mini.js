@@ -6,9 +6,9 @@
  * de ist die Referenzlocale, en der Fallback für fehlende Schlüssel.
  */
 
-export const SUPPORTED_LOCALES = ['de', 'en', 'es', 'fr', 'it', 'sv', 'el', 'ru', 'tr', 'zh', 'zh-Hant', 'ja', 'ar', 'hi', 'pt-BR', 'pt', 'uk', 'pl', 'nl', 'cs', 'vi', 'hu', 'ko', 'id', 'fa', 'fil', 'nb'];
+export const SUPPORTED_LOCALES = ['de', 'en', 'es', 'fr', 'it', 'sv', 'el', 'ru', 'tr', 'zh', 'zh-Hant', 'ja', 'ar', 'hi', 'pt-BR', 'pt', 'uk', 'pl', 'nl', 'cs', 'vi', 'hu', 'ko', 'id', 'fa', 'fil', 'nb', 'he'];
 const FALLBACK_LOCALE = 'en';
-const RTL_LOCALES = ['ar', 'fa'];
+const RTL_LOCALES = ['ar', 'fa', 'he'];
 const STORAGE_KEY = 'yuvomi-installer-locale';
 
 let translations = {};

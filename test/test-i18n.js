@@ -613,7 +613,7 @@ test('kein Locale-Wert traegt ein HTML-Tag', () => {
 // Sprachen, deren Werte in einer anderen Schrift als Latein stehen. Der Test
 // darunter haelt die Liste am Bestand fest, damit eine neue Sprache nicht still
 // herausfaellt.
-const NON_LATIN_LOCALES = ['ar', 'el', 'fa', 'hi', 'ja', 'ko', 'ru', 'uk', 'zh', 'zh-Hant'];
+const NON_LATIN_LOCALES = ['ar', 'el', 'fa', 'he', 'hi', 'ja', 'ko', 'ru', 'uk', 'zh', 'zh-Hant'];
 
 /** Gruende, aus denen ein Wert nach verlorenen Zeichen aussieht (leer = in Ordnung). */
 function lostCharacterReasons(value, nonLatin) {
