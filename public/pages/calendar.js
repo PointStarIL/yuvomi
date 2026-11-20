@@ -15,6 +15,7 @@ import { beginRowFill, drawRowIcons } from '/utils/row-fill.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete, vibrate, durationToken, requestHeadCollapse } from '/utils/ux.js';
 import { t, getLocale, formatDayMonth, formatMonthYear, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput, setWeekStart } from '/i18n.js';
 import { esc, fmtLocation, REQUIRED_MARK } from '/utils/html.js';
+import { hebrewDayLabel } from '/utils/hebrew-date.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod } from '/utils/period-stepper.js';
 import { swapRegion } from '/utils/content-swap.js';
 import { initials } from '/utils/initials.js';
@@ -4355,6 +4356,15 @@ function monthBandsHtml({ bands }, inMonth = []) {
   }).join('')}</div>`;
 }
 
+/**
+ * Hebrew date next to the Gregorian number: for the Hebrew UI language and for
+ * households whose holiday country is Israel (Hebcal), so a Hebrew calendar
+ * reads as one.
+ */
+function showHebrewDates() {
+  return getLocale() === 'he' || state.holidayPrefs?.holiday_country === 'IL';
+}
+
 function renderMonthDay(date, inMonth, { selected = false, selWeek = false, split = false, focusable = false, band = null } = {}) {
   const evs      = eventsOnDay(date);
   // Mehrtaegige Termine stehen als Band ueber der Zeile (monthBandsHtml), nicht
@@ -4432,6 +4442,7 @@ function renderMonthDay(date, inMonth, { selected = false, selWeek = false, spli
       <span class="sr-only month-day__label">${esc(monthDayAriaLabel(date, labelTotal, evs, { tasks: dayTasks, others: [...dayHols.map((h) => h.name), ...daySchedule.map(scheduleEntryLabel)], isToday }))}</span>
       <div class="month-day__visual" aria-hidden="true">
       <div class="month-day__number">${new Date(date + 'T00:00:00').getDate()}</div>
+      ${showHebrewDates() ? `<div class="month-day__heb">${esc(hebrewDayLabel(date, getLocale()))}</div>` : ''}
       ${scheduleHtml}
       ${band?.depth ? `<div class="month-day__lanes" style="--lanes:${band.depth}"></div>` : ''}
       ${holHtml}

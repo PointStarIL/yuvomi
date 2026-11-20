@@ -1067,6 +1067,22 @@
   overflow: hidden;
 }
 
+/* Hebrew date (he UI language / Israel holiday country): small, in the corner
+   opposite the Gregorian number. Logical properties, so it mirrors with the grid. */
+.month-day {
+  position: relative;
+}
+
+.month-day__heb {
+  position: absolute;
+  inset-block-start: var(--space-1);
+  inset-inline-end: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+  pointer-events: none;
+}
+
 .month-day:nth-child(7n) {
   border-inline-end: none;
 }
