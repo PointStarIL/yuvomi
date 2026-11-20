@@ -1661,6 +1661,7 @@ test('getCountries: prefers EN names and sorts alphabetically', async () => {
     { isoCode: 'CA', name: 'Canada', schoolHolidays: false },
     { isoCode: 'FR', name: 'France' },
     { isoCode: 'DE', name: 'Germany' },
+    { isoCode: 'IL', name: 'Israel', schoolHolidays: false },
     { isoCode: 'NZ', name: 'New Zealand', schoolHolidays: false },
     { isoCode: 'GB', name: 'United Kingdom', schoolHolidays: false },
     { isoCode: 'US', name: 'United States', schoolHolidays: false },
@@ -1678,6 +1679,7 @@ test('getCountries: OpenHolidays nicht erreichbar -> die lokalen Laender bleiben
     { isoCode: 'AU', name: 'Australia', schoolHolidays: false },
     { isoCode: 'BR', name: 'Brazil', schoolHolidays: false },
     { isoCode: 'CA', name: 'Canada', schoolHolidays: false },
+    { isoCode: 'IL', name: 'Israel', schoolHolidays: false },
     { isoCode: 'NZ', name: 'New Zealand', schoolHolidays: false },
     { isoCode: 'GB', name: 'United Kingdom', schoolHolidays: false },
     { isoCode: 'US', name: 'United States', schoolHolidays: false },
@@ -1747,6 +1749,62 @@ test('getSubdivisions: maps code/name, falls back to shortName, sorts', async ()
     { isoCode: 'DE-BY', name: 'Bavaria' },
     { isoCode: 'DE-BW', name: 'BW' },
   ]);
+});
+
+// ---- Israel / Hebcal ---------------------------------------------------------
+
+const HEBCAL_FIXTURE = {
+  items: [
+    { title: 'Rosh Hashana 5787', hebrew: 'ראש השנה 5787', date: '2026-09-12', category: 'holiday', subcat: 'major', yomtov: true },
+    { title: 'Parashat Haazinu', hebrew: 'פרשת האזינו', date: '2026-09-19', category: 'parashat' },
+    { title: 'Rosh Chodesh Sh\'vat', hebrew: 'ראש חודש שבט', date: '2026-01-19', category: 'roshchodesh' },
+    { title: 'Mevarchim Chodesh Sh\'vat', hebrew: 'מברכים חודש שבט', date: '2026-01-17', category: 'mevarchim' },
+  ],
+};
+
+test('getCountries: Israel is offered even when OpenHolidays does not list it', async () => {
+  __setFetchImpl(makeApiMock());
+  const il = (await getCountries()).find((c) => c.isoCode === 'IL');
+  assert.deepEqual(il, { isoCode: 'IL', name: 'Israel', schoolHolidays: false });
+});
+
+test('sync: IL pulls holidays from Hebcal, skips mevarchim, Hebrew names for language he', async () => {
+  const urls = [];
+  __setFetchImpl(async (url) => { urls.push(String(url)); return okJson(HEBCAL_FIXTURE); });
+  setConfig({ holiday_country: 'IL', holiday_show_public: '1', holiday_show_school: '0', language: 'he' });
+
+  const res = await sync(true);
+  assert.equal(res.synced, 3 * SYNC_YEAR_SPAN, '3 kept items per year, mevarchim dropped');
+  assert.ok(urls.every((u) => u.startsWith('https://www.hebcal.com/hebcal?') && u.includes('i=on') && u.includes('cfg=json')));
+  setConfig({ holiday_show_public: '1' });
+  const names = getForRange('2026-01-01', '2026-12-31').map((r) => r.name);
+  assert.ok(names.includes('ראש השנה 5787'));
+  assert.ok(names.includes('פרשת האזינו'));
+  assert.ok(names.includes('ראש חודש שבט'));
+  assert.ok(!names.some((n) => n.includes('מברכים')), 'mevarchim is noise');
+});
+
+test('sync: IL uses English titles when the household language is not Hebrew', async () => {
+  __setFetchImpl(async () => okJson(HEBCAL_FIXTURE));
+  setConfig({ holiday_country: 'IL', holiday_show_public: '1', holiday_show_school: '0', language: 'en' });
+  await sync(true);
+  const names = getForRange('2026-01-01', '2026-12-31').map((r) => r.name);
+  assert.ok(names.includes('Rosh Hashana 5787'));
+});
+
+test('sync: Hebcal outage keeps the cache and reports the year as failed, not empty', async () => {
+  __setFetchImpl(async () => okJson({ error: 'maintenance' }));
+  setConfig({ holiday_country: 'IL', holiday_show_public: '1', holiday_show_school: '0', language: 'he' });
+  seedHoliday({ type: 'public', country: 'IL', start: '2026-09-12', end: '2026-09-12', name: 'ראש השנה' });
+  await sync(true);
+  const names = getForRange('2026-01-01', '2026-12-31').map((r) => r.name);
+  assert.ok(names.includes('ראש השנה'), 'old rows survive a failed fetch');
+});
+
+test('getSubdivisions / getGroups: Israel has none and needs no OpenHolidays call', async () => {
+  __setFetchImpl(async () => { throw new Error('must not be called'); });
+  assert.deepEqual(await getSubdivisions('IL', 'he'), []);
+  assert.deepEqual(await getGroups('IL'), []);
 });
 
 test('teardown: restore real database', () => {

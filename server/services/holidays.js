@@ -52,6 +52,54 @@ async function apiFetch(path) {
   }
 }
 
+// --------------------------------------------------------
+// Israel / juedischer Kalender: Hebcal (https://www.hebcal.com)
+// --------------------------------------------------------
+
+const HEBCAL_URL = 'https://www.hebcal.com/hebcal';
+/** Israel hat keine OpenHolidays-Daten; die Feiertage kommen von Hebcal. */
+const HEBCAL_COUNTRIES = { IL: { name: 'Israel' } };
+/** Hebcal-Kategorien, die der Kalender zeigt (Mewarchim-Sonntage sind Rauschen). */
+const HEBCAL_CATEGORIES = new Set(['holiday', 'roshchodesh', 'parashat']);
+
+/**
+ * Das juedische Jahr eines Gregorianischen Jahres von Hebcal holen.
+ * Parameter: maj/min/mod = grosse, kleine und moderne (israelische) Feiertage,
+ * nx = Rosch Chodesch, ss = besondere Schabbatot, mf = Fastentage, s = Wochenabschnitt,
+ * i = Israel-Plan (ein Festtag in Israel statt zwei), lg=s = englische Titel (das
+ * Feld `hebrew` ist in jeder Antwort dabei, ohne Nikud).
+ * @param {number} year
+ * @param {string} langCode 'HE' fuer hebraeische Namen, sonst englische
+ * @returns {Promise<Array<{startDate: string, endDate: string, name: string}>>}
+ */
+async function fetchHebcalYear(year, langCode) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const qs = `v=1&cfg=json&year=${year}&month=x&maj=on&min=on&mod=on&nx=on&ss=on&mf=on&s=on&i=on&lg=s&geo=none`;
+    const res = await fetchImpl(`${HEBCAL_URL}?${qs}`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
+    const body = await res.json();
+    if (!Array.isArray(body?.items)) throw new Error('Unexpected Hebcal response shape');
+    const hebrew = langCode === 'HE';
+    const rows = [];
+    for (const it of body.items) {
+      if (!HEBCAL_CATEGORIES.has(it.category) || typeof it.date !== 'string') continue;
+      // Uhrzeit-Eintraege (Kerzenzuenden) tragen ein 'T' im Datum - hier nicht angefordert.
+      const date = it.date.slice(0, 10);
+      const name = (hebrew && it.hebrew) || it.title;
+      if (!name) continue;
+      rows.push({ startDate: date, endDate: date, name });
+    }
+    return rows;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Alle verfügbaren Länder abrufen.
  *
@@ -89,7 +137,10 @@ async function getCountries() {
   const local = Object.keys(LOCAL_COUNTRIES)
     .filter((isoCode) => !apiCodes.has(isoCode))
     .map((isoCode) => ({ isoCode, name: LOCAL_COUNTRIES[isoCode].name, schoolHolidays: false }));
-  return [...apiCountries, ...local].sort((a, b) => a.name.localeCompare(b.name));
+  const hebcal = Object.keys(HEBCAL_COUNTRIES)
+    .filter((isoCode) => !apiCodes.has(isoCode))
+    .map((isoCode) => ({ isoCode, name: HEBCAL_COUNTRIES[isoCode].name, schoolHolidays: false }));
+  return [...apiCountries, ...local, ...hebcal].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -113,6 +164,7 @@ async function getCountries() {
  */
 async function getSubdivisions(countryIsoCode, locale = null) {
   if (countryIsoCode === 'GB') return GB_SUBDIVISIONS.slice();
+  if (HEBCAL_COUNTRIES[countryIsoCode]) return [];
   const raw = await apiFetch(`/Subdivisions?countryIsoCode=${encodeURIComponent(countryIsoCode)}`);
   // OpenHolidays fuehrt Namen je SPRACHE, nicht je Locale: `pt-BR` fragt nach PT.
   const langCode = typeof locale === 'string' && locale ? locale.split('-')[0].toUpperCase() : undefined;
@@ -140,7 +192,7 @@ async function getGroups(countryIsoCode, subdivisionCode = null) {
   // GB hat keine Schulferien-Gruppen (kein Datenanbieter, siehe getCountries)
   // - ein Abruf gegen die echte API mit einem erfundenen Laendercode waere
   // sinnlos und koennte nur einen Fehlschlag ernten.
-  if (countryIsoCode === 'GB') return [];
+  if (countryIsoCode === 'GB' || HEBCAL_COUNTRIES[countryIsoCode]) return [];
   const raw = await apiFetch(`/Subdivisions?countryIsoCode=${encodeURIComponent(countryIsoCode)}`);
   // NUR EIN ECHTES ARRAY IST EINE AUSKUNFT (wie beim Sync unten): eine 200 mit
   // anderem Rumpf als "keine Gruppen" zu melden, liesse die Einstellungen die
@@ -658,7 +710,15 @@ async function syncYearAndType(country, subdivision, year, type, langCode) {
   // Voraus bekannten sinnlosen Abrufs abhaengig zu machen. Schulferien nehmen
   // weiter den API-Weg - fuer sie gibt es keinen lokalen Ersatz, und die leere
   // Antwort bleibt dort die ehrliche Auskunft.
-  if (type === 'public' && LOCAL_COUNTRIES[country]) {
+  if (type === 'public' && HEBCAL_COUNTRIES[country]) {
+    try {
+      holidays = await fetchHebcalYear(year, langCode);
+    } catch (err) {
+      log.warn(`Fetch Hebcal ${country}/${year}: ${err.message}`);
+      fetchFailed = true;
+      holidays = [];
+    }
+  } else if (type === 'public' && LOCAL_COUNTRIES[country]) {
     holidays = localHolidayFallback(country, type, year, langCode, subdivision);
   } else {
     try {
