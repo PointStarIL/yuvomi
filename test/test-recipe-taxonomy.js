@@ -54,3 +54,10 @@ test('cooking mode: opens above everything, closes with Escape or the X at the l
   const css = readFileSync(new URL('../public/styles/recipes.css', import.meta.url), 'utf8');
   assert.match(css, /\.cook-mode \.recipe-detail__ingredient-match[^{]*\{\s*display:\s*none/, 'no pantry detours while cooking');
 });
+
+test('cooking mode: its button opens the detail, it is not buried in the action row at the end', () => {
+  const js = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
+  const detail = js.slice(js.indexOf('function fillRecipeDetail('));
+  assert.ok(detail.indexOf("recipe-detail__cook") > 0 && detail.indexOf("recipe-detail__cook") < detail.indexOf('const hero = recipeHeroEl'), 'before the hero image');
+  assert.doesNotMatch(js.slice(js.indexOf("detailActions.className")), /openCookingMode\(recipe, cook\)[\s\S]{0,40}detailActions\.appendChild\(cook\)/);
+});

@@ -960,3 +960,9 @@ button.recipe-detail__ingredient-match:hover {
   font-size: var(--text-lg);
   line-height: 1.7;
 }
+
+/* The cooking-mode button opens the detail, above everything else. */
+.recipe-detail__cook {
+  display: flex;
+  justify-content: flex-start;
+}

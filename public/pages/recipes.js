@@ -1314,6 +1314,25 @@ function fillRecipeDetail(detail, recipe) {
   // ist weg - am Desktop stand es als 480px breiter Stummel ueber den Zutaten,
   // und den Titel traegt der Kopf des Rahmens ohnehin. Scheitert ein Bild beim
   // Laden, nimmt es seinen Rahmen mit (keine Luecke, kein Ersatz).
+  // Kochmodus GANZ OBEN: wer kocht, soll ihn nicht erst nach dem Scrollen bis ans
+  // Ende des Rezepts finden. Ohne Zutaten und ohne Text gibt es nichts zum
+  // Abhaken. Bewusst ohne data-action - er hat keinen Schreibweg und braucht
+  // keinen Riegel.
+  if (ingredients.length || recipe.notes) {
+    const cookRow = document.createElement('div');
+    cookRow.className = 'recipe-detail__cook';
+    const cook = document.createElement('button');
+    cook.className = 'btn btn--secondary';
+    cook.type = 'button';
+    cook.insertAdjacentHTML('beforeend', '<i data-lucide="chef-hat" class="icon-md" aria-hidden="true"></i>');
+    const cookLabel = document.createElement('span');
+    cookLabel.textContent = t('recipes.cookingMode');
+    cook.appendChild(cookLabel);
+    cook.addEventListener('click', () => openCookingMode(recipe, cook));
+    cookRow.appendChild(cook);
+    detail.appendChild(cookRow);
+  }
+
   const hero = recipeHeroEl({ recipeId: recipe.id, hasOwnImage: recipe.has_own_image });
   if (hero) detail.appendChild(hero);
 
@@ -1390,20 +1409,6 @@ function fillRecipeDetail(detail, recipe) {
     addToMeals.dataset.id = String(recipe.id);
     addToMeals.textContent = t('recipes.addToMeals');
     detailActions.appendChild(addToMeals);
-  }
-
-  // Kochmodus: ohne Zutaten und ohne Text gibt es nichts zum Abhaken. Bewusst
-  // ohne data-action - er hat keinen Schreibweg und braucht keinen Riegel.
-  if (ingredients.length || recipe.notes) {
-    const cook = document.createElement('button');
-    cook.className = 'btn btn--secondary';
-    cook.type = 'button';
-    cook.insertAdjacentHTML('beforeend', '<i data-lucide="chef-hat" class="icon-md" aria-hidden="true"></i>');
-    const cookLabel = document.createElement('span');
-    cookLabel.textContent = t('recipes.cookingMode');
-    cook.appendChild(cookLabel);
-    cook.addEventListener('click', () => openCookingMode(recipe, cook));
-    detailActions.appendChild(cook);
   }
 
   const addToShopping = shoppingTransferButton(recipe, ingredients);
