@@ -31,6 +31,7 @@ import { openDetailView, closeDetailView, detailFooterEl, withPrimaryEdit } from
 import { mayWritePath } from '/utils/module-access.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
 import { ingredientMatchKey } from '/utils/ingredient-match-key.js';
+import { locationLabel } from '/utils/pantry-locations.js';
 import { parseInstructions, loadProgress, saveProgress } from '/utils/recipe-steps.js';
 
 let _container = null;
@@ -1589,7 +1590,7 @@ function pantryMatchBulkEl(recipe) {
 /** Eine Vorratszeile im Auswahlfeld: Name, Ort und MHD unterscheiden Chargen. */
 function pantryOptionLabel(item) {
   const teile = [item.name];
-  if (item.location_name) teile.push(item.location_name);
+  if (item.location_name) teile.push(locationLabel(item.location_name));
   if (item.expires_on) teile.push(dateText(item.expires_on));
   return teile.join(' · ');
 }
