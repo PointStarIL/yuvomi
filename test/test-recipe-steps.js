@@ -17,6 +17,12 @@ test('parseInstructions: headings end with a colon, everything else is a step', 
   assert.equal(blocks[0].text, 'אופן ההכנה');
 });
 
+test('parseInstructions: a short line ending with a dash is a heading too, the dash is dropped', () => {
+  const [a, b] = parseInstructions('הכנת הטאנזונג -\nקרם הזביונה-\nמערבבים.');
+  assert.deepEqual([a.type, a.text], ['heading', 'הכנת הטאנזונג']);
+  assert.deepEqual([b.type, b.text], ['heading', 'קרם הזביונה']);
+});
+
 test('parseInstructions: warnings and dashed lines are notes without a checkbox', () => {
   const blocks = parseInstructions('חשוב לעבוד עם כפפות.\n- דגש קטן\nמערבבים.');
   assert.deepEqual(blocks.map((b) => b.type), ['note', 'note', 'step']);

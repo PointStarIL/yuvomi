@@ -6,7 +6,7 @@
  * Dependencies: none (pure; storage is injected so it can be tested)
  *
  * The recipe keeps ONE text field (`notes`), so the structure is read off its
- * lines, never stored: a short line that ends with ":" is a heading; a line that
+ * lines, never stored: a short line that ends with ":" or a dash ("הכנת הבצק -") is a heading; a line that
  * starts with a warning word (or a dash) is a side note without a checkbox;
  * everything else is a step. Blank lines only separate.
  */
@@ -29,8 +29,8 @@ export function parseInstructions(text) {
     const bullet = /^[-•*]\s+/.test(line);
     const clean = line.replace(/^[-•*]\s+/, '').trim();
     if (!clean) continue;
-    if (!bullet && clean.length <= MAX_HEADING && /:$/.test(clean)) {
-      blocks.push({ type: 'heading', text: clean.replace(/:$/, '').trim() });
+    if (!bullet && clean.length <= MAX_HEADING && /(?::|\s?[-–])$/.test(clean)) {
+      blocks.push({ type: 'heading', text: clean.replace(/\s?[-–:]$/, '').trim() });
     } else if (bullet || NOTE_WORDS.test(clean) || (first && /^מתכון\s+ל/.test(clean))) {
       blocks.push({ type: 'note', text: clean });
     } else {
