@@ -6353,7 +6353,7 @@ a.popover-menu__item {
     flex: 1;
     min-height: 0;
     padding-bottom: 0;
-    margin-left: var(--sidebar-width);
+    margin-inline-start: var(--sidebar-width);
     /* KEINE TRANSITION AM RAND (Critique R24 G0-Shell-P3-7): 400 ms
      * `margin-left` legten den ganzen Inhalt in jedem Frame neu aus (gemessen
      * 17 Breiten je Umschalten, Layout-Shift 0,20). Der Rand springt in EINEM
@@ -6372,7 +6372,7 @@ a.popover-menu__item {
      * bleibt die der Spalte - Rechnung und Folgen an `--sidebar-float-gap`
      * (tokens.css): der Inhalt wird dadurch nicht schmaler. */
     top: var(--sidebar-float-gap);
-    left: var(--sidebar-float-gap);
+    inset-inline-start: var(--sidebar-float-gap);
     bottom: var(--sidebar-float-gap);
     width: var(--sidebar-width);
     background: var(--sidebar-bg);
@@ -6412,7 +6412,8 @@ a.popover-menu__item {
      * den Nav-Item-Icon-Wells (siehe .nav-sidebar .nav-item). Krumme px-Werte,
      * weil exakte Pixel-Zentrierung nicht auf die 4px-Token-Skala fällt. */
     height: var(--target-base);
-    padding: 0 var(--space-2) 0 14px;
+    padding-block: 0;
+    padding-inline: 14px var(--space-2);
     margin-bottom: var(--space-1);
     flex-shrink: 0;
     gap: var(--space-3);
@@ -10659,6 +10660,12 @@ html:has(.search-overlay--visible) .bulk-pill-layer {
     bottom: var(--space-6);
     left: calc(var(--sidebar-width) + (100% - var(--sidebar-width)) / 2);
   }
+
+  /* Rail on the right in RTL: the free area is left of it, so its centre is
+     half of the remaining width measured from the left edge. */
+  [dir="rtl"] .shell-bottom-stack {
+    left: calc((100% - var(--sidebar-width)) / 2);
+  }
 }
 
 /* DER STAPEL WEICHT DEN KNOEPFEN EINES OFFENEN DIALOGS AUS (#1160).
@@ -11695,6 +11702,11 @@ button.btn--loading:is(:enabled, :disabled) {
      * damit um denselben Abstand in die Spalte (gemessen: Tafel endet bei
      * 228px, der Inhalt beginnt bei 220px). */
     left: calc(var(--sidebar-width) + var(--sidebar-float-gap));
+  }
+
+  [dir="rtl"] .offline-banner {
+    left: 0;
+    right: calc(var(--sidebar-width) + var(--sidebar-float-gap));
   }
 }
 

@@ -337,7 +337,8 @@ const isDesktop = (rule) => rule.at.some((a) => /min-width:\s*1024px/.test(a));
 test('R18: die Seitenleiste ist am Desktop eine schwebende Glastafel', () => {
   const geometry = rulesFor(LAYOUT, '.nav-sidebar').find((r) => isDesktop(r) && /position:\s*fixed/.test(r.body));
   assert.ok(geometry, 'die Desktop-Regel der Seitenleiste fehlt');
-  for (const side of ['top', 'left', 'bottom']) {
+  // `inset-inline-start` statt `left`: in RTL (he, ar, fa) steht die Tafel rechts.
+  for (const side of ['top', 'inset-inline-start', 'bottom']) {
     assert.match(geometry.body, new RegExp(`(?:^|;)\\s*${side}:\\s*var\\(--sidebar-float-gap\\)`), `${side}: Abstand zur Fensterkante`);
   }
   assert.match(geometry.body, /border-radius:\s*var\(--radius-glass-card\)/, 'der Radius des Glas-Chromes');
@@ -368,9 +369,9 @@ test('R18: die Seitenleiste ist am Desktop eine schwebende Glastafel', () => {
  * Liste + Detail wieder weg (R10, A3 P2-2).
  */
 test('R18: die schwebende Tafel nimmt dem Inhalt keine Breite', () => {
-  const content = rulesFor(LAYOUT, '.app-content').find((r) => isDesktop(r) && /margin-left/.test(r.body));
+  const content = rulesFor(LAYOUT, '.app-content').find((r) => isDesktop(r) && /margin-inline-start/.test(r.body));
   assert.ok(content, 'die Desktop-Regel von .app-content fehlt');
-  assert.match(content.body, /margin-left:\s*var\(--sidebar-width\)\s*;/, 'der Rand ist die Spaltenbreite, ohne Zuschlag');
+  assert.match(content.body, /margin-inline-start:\s*var\(--sidebar-width\)\s*;/, 'der Rand ist die Spaltenbreite, ohne Zuschlag');
   assert.equal(resolve('--sidebar-width-expanded', 'light'), '220px');
 
   // Die Tafel ragt um ihren Abstand in den Seitenrand des Inhalts; der muss

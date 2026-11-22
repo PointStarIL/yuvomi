@@ -1990,8 +1990,8 @@ test('Beifang: das Offline-Banner laesst am Desktop die Seitenleiste frei (Re-Cr
   assert.match(desk.body, /left\s*:\s*calc\(var\(--sidebar-width\) \+ var\(--sidebar-float-gap\)\)/,
     'das Banner beginnt rechts der schwebenden Tafel (Spalte + Abstand zur Kante)');
   const content = [...eachRule(layout)].find((r) => r.selector === '.app-content'
-    && r.at.some((a) => /min-width:\s*1024px/.test(a)) && /margin-left/.test(r.body));
-  assert.match(content?.body ?? '', /margin-left\s*:\s*var\(--sidebar-width\)/, 'dieselbe Variable wie der Inhalt');
+    && r.at.some((a) => /min-width:\s*1024px/.test(a)) && /margin-inline-start/.test(r.body));
+  assert.match(content?.body ?? '', /margin-inline-start\s*:\s*var\(--sidebar-width\)/, 'dieselbe Variable wie der Inhalt');
 });
 
 test('Zeilenaktionen sind dauerhaft sichtbar: keine Regel blendet einen Aktions-Traeger per opacity: 0 aus', () => {
