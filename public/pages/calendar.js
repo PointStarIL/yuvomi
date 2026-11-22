@@ -15,7 +15,7 @@ import { beginRowFill, drawRowIcons } from '/utils/row-fill.js';
 import { stagger, wireScrollFade, scheduleUndoableDelete, vibrate, durationToken, requestHeadCollapse } from '/utils/ux.js';
 import { t, getLocale, formatDayMonth, formatMonthYear, formatTime, timeSuffix, formatDateInput, parseDateInput, isDateInputValid, formatTimeInput, parseTimeInput, setWeekStart } from '/i18n.js';
 import { esc, fmtLocation, REQUIRED_MARK } from '/utils/html.js';
-import { hebrewDayLabel } from '/utils/hebrew-date.js';
+import { hebrewDayLabel, hebrewFullDate, hebrewMonthRange } from '/utils/hebrew-date.js';
 import { periodStepperHtml, syncPeriodReset, swapPeriod } from '/utils/period-stepper.js';
 import { swapRegion } from '/utils/content-swap.js';
 import { initials } from '/utils/initials.js';
@@ -2742,7 +2742,7 @@ function watchLabelFit(lbl) {
  */
 function periodLabelFallbacks() {
   const year = state.today.slice(0, 4);
-  if (state.view === 'day') return [dayHeadingText(state.cursor, { year: true })];
+  if (state.view === 'day') return [dayHeadingText(state.cursor, { year: true }) + dayHebrewSuffix(state.cursor)];
   const span = state.view === 'agenda'
     ? getAgendaRange(state.cursor)
     : state.view === 'week' && window.matchMedia(MOBILE_MEDIA_QUERY).matches
@@ -2805,7 +2805,7 @@ function periodTitleCandidates(year) {
   if (state.view === 'month') return Array.from({ length: 12 }, (_, i) => formatMonthYear(year, i + 1));
   if (state.view === 'week') return MONTH_NAMES().map((month) => t('calendar.weekNumberLabel', { week: 52, month, year }));
   if (state.view === 'day') {
-    return Array.from({ length: 7 }, (_, i) => dayHeadingText(addDays(state.cursor, i), { long: true, year: true }));
+    return Array.from({ length: 7 }, (_, i) => dayHeadingText(addDays(state.cursor, i), { long: true, year: true }) + dayHebrewSuffix(addDays(state.cursor, i)));
   }
   return null;
 }
@@ -2849,7 +2849,7 @@ function updateLabel() {
 
   // Die Reihenfolge von Monat und Jahr ist Sache der Sprache (#1607):
   // "${mon} ${year}" ergab im Koreanischen "10월 2026" statt "2026년 10월".
-  if (state.view === 'month')  setPeriodTitle(lbl, formatMonthYear(year, d.getMonth() + 1));
+  if (state.view === 'month') { setPeriodTitle(lbl, formatMonthYear(year, d.getMonth() + 1)); appendHebrewMonth(lbl, year, d.getMonth() + 1); }
   if (state.view === 'week') {
     // Mobil zeigt die "Woche" ein 3-Tage-Fenster ab dem Cursor (mobileWeekDays);
     // ein "KW 30"-Label würde dann einen Bereich behaupten, der nicht zu sehen
@@ -2862,7 +2862,7 @@ function updateLabel() {
   // lief damit ueber die feste Breite des Labels hinaus - der Weiter-Pfeil
   // stand in der Tagesansicht 30px weiter rechts als in den drei anderen
   // (Critique 2026-09-24). „Do, 24.09.2026" traegt dieselbe Auskunft.
-  if (state.view === 'day')    lbl.textContent = dayHeadingText(state.cursor, { long: !window.matchMedia(MOBILE_MEDIA_QUERY).matches, year: true });
+  if (state.view === 'day')    lbl.textContent = dayHeadingText(state.cursor, { long: !window.matchMedia(MOBILE_MEDIA_QUERY).matches, year: true }) + dayHebrewSuffix(state.cursor);
   // DIE AGENDA NENNT IHRE SPANNE, nicht nur ihren Anfang. „Ab 24.09.2026"
   // sagte nicht, wie weit die Liste reicht, und „Weiter" sprang dann still
   // auf „Ab 24.10.2026" (Critique 2026-09-24). Die Spanne ist die, die
@@ -4365,6 +4365,22 @@ function showHebrewDates() {
   return getLocale() === 'he' || state.holidayPrefs?.holiday_country === 'IL';
 }
 
+/** The Hebrew month(s) next to the month title, when Hebrew dates are on. */
+function appendHebrewMonth(lbl, year, month) {
+  if (!showHebrewDates() || typeof lbl.append !== 'function') return;
+  const heb = document.createElement('span');
+  heb.className = 'page-toolbar__period-heb';
+  heb.textContent = hebrewMonthRange(year, month);
+  lbl.append(' ', heb);
+}
+
+/** " · י״ב בכסלו תשפ״ז" after a day heading, or '' when Hebrew dates are off. */
+function dayHebrewSuffix(date) {
+  if (!showHebrewDates()) return '';
+  const text = hebrewFullDate(date);
+  return text ? ` · ${text}` : '';
+}
+
 function renderMonthDay(date, inMonth, { selected = false, selWeek = false, split = false, focusable = false, band = null } = {}) {
   const evs      = eventsOnDay(date);
   // Mehrtaegige Termine stehen als Band ueber der Zeile (monthBandsHtml), nicht
@@ -4964,6 +4980,7 @@ function renderWeekView(container) {
           return timeGridDayHeadHtml({
             dayName: DAY_NAMES_SHORT()[dt.getDay()],
             dayNum: dt.getDate(),
+            sub: showHebrewDates() ? hebrewDayLabel(d, getLocale()) : '',
             isToday: d === state.today,
             attrs: { 'data-date': d, role: 'button', tabindex: '0', 'aria-label': t('calendar.monthOpenDay', { date: dayHeadingText(d, { long: true }) }) },
           });

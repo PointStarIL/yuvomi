@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hebrewDayLabel, hebrewNumeral } from '../public/utils/hebrew-date.js';
+import { hebrewDayLabel, hebrewNumeral, hebrewYearLabel, hebrewFullDate, hebrewMonthRange } from '../public/utils/hebrew-date.js';
 
 test('hebrewNumeral: gematria for 1-30, 15 and 16 avoid the divine name', () => {
   const expected = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ז׳', 'ח׳', 'ט׳', 'י׳',
@@ -17,7 +17,7 @@ test('hebrewNumeral: gematria for 1-30, 15 and 16 avoid the divine name', () => 
 
 test('hebrewNumeral: out-of-range input falls back to plain digits', () => {
   assert.equal(hebrewNumeral(0), '0');
-  assert.equal(hebrewNumeral(31), '31');
+  assert.equal(hebrewNumeral(1000), '1000');
 });
 
 test('hebrewDayLabel: 12 Sep 2026 is 1 Tishrei 5787 - the month shows on the 1st', () => {
@@ -36,4 +36,23 @@ test('hebrewDayLabel: other UI languages get Latin digits', () => {
 test('hebrewDayLabel: garbage in, empty string out', () => {
   assert.equal(hebrewDayLabel('not-a-date'), '');
   assert.equal(hebrewDayLabel(''), '');
+});
+
+test('hebrewNumeral: hundreds for years, 15/16 keep their exceptions', () => {
+  assert.equal(hebrewNumeral(787), 'תשפ״ז');
+  assert.equal(hebrewNumeral(400), 'ת׳');
+  assert.equal(hebrewNumeral(500), 'ת״ק');
+  assert.equal(hebrewNumeral(115), 'קט״ו');
+  assert.equal(hebrewYearLabel(5787), 'תשפ״ז');
+});
+
+test('hebrewFullDate: written the Hebrew way, with or without the year', () => {
+  assert.equal(hebrewFullDate('2026-09-12'), 'א׳ בתשרי תשפ״ז');
+  assert.equal(hebrewFullDate('2026-09-12', { year: false }), 'א׳ בתשרי');
+  assert.equal(hebrewFullDate('garbage'), '');
+});
+
+test('hebrewMonthRange: one month, two months, and across Rosh Hashana', () => {
+  assert.equal(hebrewMonthRange(2026, 11), 'חשוון - כסלו תשפ״ז');
+  assert.equal(hebrewMonthRange(2026, 9), 'אלול תשפ״ו - תשרי תשפ״ז');
 });

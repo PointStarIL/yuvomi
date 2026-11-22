@@ -4152,3 +4152,16 @@
   text-align: end;
 }
 
+
+/* Hebrew date next to the Gregorian one (he UI / Israel holiday country). */
+.week-view__day-heb {
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+}
+
+.page-toolbar__period-heb {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-regular, 400);
+  color: var(--color-text-secondary);
+}

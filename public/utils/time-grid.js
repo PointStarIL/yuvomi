@@ -157,13 +157,14 @@ function attrsHtml(attrs = {}) {
  * @param {object} [o.attrs]      weitere Attribute (data-date, role, aria-label …)
  * @returns {string}
  */
-export function timeGridDayHeadHtml({ dayName, dayNum, isToday = false, className = '', attrs = {} }) {
+export function timeGridDayHeadHtml({ dayName, dayNum, sub = '', isToday = false, className = '', attrs = {} }) {
   return `<div class="week-view__day-header${className ? ` ${esc(className)}` : ''}"${attrsHtml({
     ...attrs,
     'aria-current': isToday ? 'date' : undefined,
   })}>
             <div class="week-view__day-name">${esc(dayName)}</div>
-            <div class="week-view__day-num${isToday ? ' week-view__day-num--today' : ''}">${esc(String(dayNum))}</div>
+            <div class="week-view__day-num${isToday ? ' week-view__day-num--today' : ''}">${esc(String(dayNum))}</div>${sub ? `
+            <div class="week-view__day-heb" aria-hidden="true">${esc(sub)}</div>` : ''}
           </div>`;
 }
 
