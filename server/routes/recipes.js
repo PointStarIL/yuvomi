@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import * as db from '../db.js';
 import { str, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT } from '../middleware/validate.js';
 import { normalizeRecipeMealTypes } from '../../public/utils/recipe-meal-types.js';
+import { normalizeCourse, normalizeKashrut, normalizeTags } from '../../public/utils/recipe-taxonomy.js';
 import { ingredientMatchKey } from '../../public/utils/ingredient-match-key.js';
 import { getAdapter } from '../services/recipe-providers/index.js';
 import { dataUrlContentMatches } from '../utils/file-signature.js';
@@ -100,6 +101,39 @@ function attachPantryMatches(req, ingredients) {
   });
 }
 
+/* COURSE, KASHRUT, TAGS (see public/utils/recipe-taxonomy.js).
+ *
+ * `undefined` = not sent: the stored value stays (partial update, like the image
+ * and meal_types); `null` or "" clears; anything else must be a known value, an
+ * unknown one is refused instead of silently clearing what was stored. Tags are a
+ * list or comma text and replace the stored list as a whole. */
+function taxonomyField(val, normalize, label) {
+  if (val === undefined) return { value: undefined, error: null };
+  if (val === null || val === '') return { value: null, error: null };
+  const value = normalize(val);
+  return value ? { value, error: null } : { value: null, error: `${label} is not a known value.` };
+}
+
+function loadTags(ids) {
+  const map = new Map();
+  if (!ids.length) return map;
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = db.get().prepare(
+    `SELECT recipe_id, tag FROM recipe_tags WHERE recipe_id IN (${placeholders}) ORDER BY tag COLLATE NOCASE ASC`,
+  ).all(...ids);
+  for (const row of rows) {
+    if (!map.has(row.recipe_id)) map.set(row.recipe_id, []);
+    map.get(row.recipe_id).push(row.tag);
+  }
+  return map;
+}
+
+function writeTags(recipeId, tags) {
+  db.get().prepare('DELETE FROM recipe_tags WHERE recipe_id = ?').run(recipeId);
+  const insert = db.get().prepare('INSERT OR IGNORE INTO recipe_tags (recipe_id, tag) VALUES (?, ?)');
+  for (const tag of tags) insert.run(recipeId, tag);
+}
+
 function loadRecipeWithIngredients(req, id) {
   const recipe = db.get().prepare(`
     SELECT r.*, u.display_name AS creator_name, u.avatar_color AS creator_color,
@@ -118,7 +152,7 @@ function loadRecipeWithIngredients(req, id) {
     ORDER BY id ASC
   `).all(id));
 
-  return withSource({ ...recipe, meal_types: normalizeRecipeMealTypes(recipe.meal_types), ingredients });
+  return withSource({ ...recipe, meal_types: normalizeRecipeMealTypes(recipe.meal_types), tags: loadTags([id]).get(id) ?? [], ingredients });
 }
 
 // Unerwartete Fehler gehen an den zentralen Fehlerhandler (#2810): 500 mit
@@ -137,6 +171,7 @@ router.get('/', validateRequest(), (req, res) => {
 
   const ids = recipes.map((r) => r.id);
   let ingredientMap = {};
+  const tagMap = loadTags(ids);
 
   if (ids.length > 0) {
     const placeholders = ids.map(() => '?').join(',');
@@ -155,6 +190,7 @@ router.get('/', validateRequest(), (req, res) => {
   res.json({ data: recipes.map((r) => withSource({
     ...r,
     meal_types: normalizeRecipeMealTypes(r.meal_types),
+    tags: tagMap.get(r.id) ?? [],
     ingredients: ingredientMap[r.id] || [],
   })) });
 });
@@ -216,17 +252,21 @@ router.post('/', validateRequest(), (req, res) => {
   const mealTypes = normalizeRecipeMealTypes(body.meal_types);
 
   const vImage = validateRecipeImage(body.image_data);
-  const errors = collectErrors([vTitle, vNotes, vRecipeUrl, vImage]);
+  const vCourse = taxonomyField(body.course, normalizeCourse, 'Course');
+  const vKashrut = taxonomyField(body.kashrut, normalizeKashrut, 'Kashrut');
+  const errors = collectErrors([vTitle, vNotes, vRecipeUrl, vImage, vCourse, vKashrut]);
   if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
   const recipeId = db.transaction(() => {
     const result = db.get().prepare(`
-      INSERT INTO recipes (title, notes, recipe_url, meal_types, image_data, servings, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO recipes (title, notes, recipe_url, meal_types, image_data, servings, course, kashrut, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(vTitle.value, vNotes.value, vRecipeUrl.value, mealTypes.join(','),
-      vImage.value ?? null, body.servings ?? null, req.authUserId || req.session.userId);
+      vImage.value ?? null, body.servings ?? null, vCourse.value ?? null, vKashrut.value ?? null,
+      req.authUserId || req.session.userId);
 
     const rid = Number(result.lastInsertRowid);
+    if (body.tags !== undefined) writeTags(rid, normalizeTags(body.tags));
     const insertIng = db.get().prepare(`
       INSERT INTO recipe_ingredients (recipe_id, name, quantity, category)
       VALUES (?, ?, ?, ?)
@@ -278,7 +318,9 @@ router.put('/:id', validateRequest(), (req, res) => {
     body.meal_types === undefined ? existing.meal_types : body.meal_types
   );
   const vImage = validateRecipeImage(body.image_data);
-  const errors = collectErrors([vTitle, vNotes, vRecipeUrl, vImage]);
+  const vCourse = taxonomyField(body.course, normalizeCourse, 'Course');
+  const vKashrut = taxonomyField(body.kashrut, normalizeKashrut, 'Kashrut');
+  const errors = collectErrors([vTitle, vNotes, vRecipeUrl, vImage, vCourse, vKashrut]);
   if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
   db.transaction(() => {
@@ -290,11 +332,16 @@ router.put('/:id', validateRequest(), (req, res) => {
       UPDATE recipes
       SET title = ?, notes = ?, recipe_url = ?, meal_types = ?,
           image_data = CASE WHEN ? = 1 THEN ? ELSE image_data END,
-          servings = CASE WHEN ? = 1 THEN ? ELSE servings END
+          servings = CASE WHEN ? = 1 THEN ? ELSE servings END,
+          course = CASE WHEN ? = 1 THEN ? ELSE course END,
+          kashrut = CASE WHEN ? = 1 THEN ? ELSE kashrut END
       WHERE id = ?
     `).run(vTitle.value, vNotes.value, vRecipeUrl.value, mealTypes.join(','),
       vImage.value === undefined ? 0 : 1, vImage.value ?? null,
-      body.servings === undefined ? 0 : 1, body.servings ?? null, id);
+      body.servings === undefined ? 0 : 1, body.servings ?? null,
+      vCourse.value === undefined ? 0 : 1, vCourse.value ?? null,
+      vKashrut.value === undefined ? 0 : 1, vKashrut.value ?? null, id);
+    if (body.tags !== undefined) writeTags(id, normalizeTags(body.tags));
 
     db.get().prepare('DELETE FROM recipe_ingredients WHERE recipe_id = ?').run(id);
 

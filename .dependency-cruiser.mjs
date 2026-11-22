@@ -96,6 +96,8 @@ export const SERVER_PUBLIC_IMPORT_NAMES = [
   // looking for the split would try.
   'quick-link-url',
   'recipe-meal-types',
+  // Course, kashrut and tag rules of a recipe: the router validates exactly what the form offers.
+  'recipe-taxonomy',
   // #620: the format of the sync target id. The server validates exactly what the event modal
   // and the settings build.
   'sync-target',

@@ -171,6 +171,7 @@ export const TABLE_OWNERS: Readonly<Record<string, Owner>> = Object.freeze({
   recipe_ingredient_pantry_matches: 'meals',
   recipe_ingredients: 'meals',
   recipe_provider_accounts: 'meals',
+  recipe_tags: 'meals',
   recipes: 'meals',
   recurring_expenses: 'budget',
   reminders: 'delivery',

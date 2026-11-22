@@ -1034,3 +1034,56 @@ test('POST /:id/to-shopping-list: hat sich das Rezept seit dem Laden geaendert, 
   const plain = await call('POST', `/${id}/to-shopping-list`, { listId });
   assert.equal(plain.status, 200, 'ohne quantities unveraendert');
 });
+
+// ---- course, kashrut, tags ---------------------------------------------------
+
+test('POST /: course, kashrut and tags are stored and answered; tags clean and sorted', async () => {
+  const r = await call('POST', '/', { title: 'Challah', course: 'bakery', kashrut: 'pareve', meal_types: [], tags: [' שבת ', '#שבת', 'Yeast', 'freezable'] });
+  assert.equal(r.status, 201, JSON.stringify(r.body));
+  assert.equal(r.body.data.course, 'bakery');
+  assert.equal(r.body.data.kashrut, 'pareve');
+  assert.deepEqual(r.body.data.tags, ['freezable', 'Yeast', 'שבת']);
+  const row = db.prepare('SELECT course, kashrut FROM recipes WHERE id = ?').get(r.body.data.id);
+  assert.deepEqual({ ...row }, { course: 'bakery', kashrut: 'pareve' });
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM recipe_tags WHERE recipe_id = ?').get(r.body.data.id).c, 3);
+});
+
+test('POST /: nothing sent means no course, no kashrut, no tags', async () => {
+  const r = await call('POST', '/', { title: 'Plain' });
+  assert.equal(r.body.data.course, null);
+  assert.equal(r.body.data.kashrut, null);
+  assert.deepEqual(r.body.data.tags, []);
+});
+
+test('POST /: an unknown course or kashrut is refused, not silently dropped', async () => {
+  const course = await call('POST', '/', { title: 'x', course: 'brunch' });
+  assert.equal(course.status, 400);
+  const kashrut = await call('POST', '/', { title: 'x', kashrut: 'kosher' });
+  assert.equal(kashrut.status, 400);
+});
+
+test('PUT /:id: left out the stored course, kashrut and tags stay; null clears; a list replaces', async () => {
+  const id = (await call('POST', '/', { title: 'Soup', course: 'starter', kashrut: 'meat', tags: ['winter'] })).body.data.id;
+  const kept = await call('PUT', `/${id}`, { title: 'Soup 2' });
+  assert.equal(kept.body.data.course, 'starter');
+  assert.equal(kept.body.data.kashrut, 'meat');
+  assert.deepEqual(kept.body.data.tags, ['winter']);
+  const changed = await call('PUT', `/${id}`, { title: 'Soup 2', course: 'main', tags: ['quick', 'Winter'] });
+  assert.equal(changed.body.data.course, 'main');
+  assert.equal(changed.body.data.kashrut, 'meat');
+  assert.deepEqual(changed.body.data.tags, ['quick', 'Winter']);
+  const cleared = await call('PUT', `/${id}`, { title: 'Soup 2', course: null, kashrut: '', tags: [] });
+  assert.equal(cleared.body.data.course, null);
+  assert.equal(cleared.body.data.kashrut, null);
+  assert.deepEqual(cleared.body.data.tags, []);
+});
+
+test('GET /: the list carries course, kashrut and tags per recipe; deleting the recipe drops its tags', async () => {
+  const id = (await call('POST', '/', { title: 'Listed', course: 'dessert', tags: ['sweet'] })).body.data.id;
+  const list = await call('GET', '/');
+  const hit = list.body.data.find((x) => x.id === id);
+  assert.equal(hit.course, 'dessert');
+  assert.deepEqual(hit.tags, ['sweet']);
+  await call('DELETE', `/${id}`);
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM recipe_tags WHERE recipe_id = ?').get(id).c, 0);
+});

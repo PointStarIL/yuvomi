@@ -12008,6 +12008,30 @@ const MIGRATIONS = [
       }
     },
   },
+  {
+    version: 283,
+    description: 'recipes: course, kashrut and free tags',
+    // A recipe is more than the meals it can be planned as (`meal_types`):
+    // `course` says what kind of dish it is (main, side, dessert, bakery ...),
+    // `kashrut` is dairy / meat / pareve, and `recipe_tags` holds free tags.
+    // Allowed values live in public/utils/recipe-taxonomy.js; the router
+    // validates them, so the columns carry no CHECK (a new course would
+    // otherwise be a table rebuild). Tags are one row per recipe and tag,
+    // compared ignoring case, and go with the recipe (ON DELETE CASCADE).
+    up(database) {
+      const cols = database.prepare('PRAGMA table_info(recipes)').all();
+      if (!cols.some((c) => c.name === 'course')) database.exec('ALTER TABLE recipes ADD COLUMN course TEXT');
+      if (!cols.some((c) => c.name === 'kashrut')) database.exec('ALTER TABLE recipes ADD COLUMN kashrut TEXT');
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS recipe_tags (
+          recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+          tag       TEXT    NOT NULL COLLATE NOCASE,
+          PRIMARY KEY (recipe_id, tag)
+        );
+        CREATE INDEX IF NOT EXISTS idx_recipe_tags_tag ON recipe_tags(tag);
+      `);
+    },
+  },
 ];
 
 /**

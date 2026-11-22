@@ -1,5 +1,6 @@
 import { op, idParam, withCaseReasons, withValidationRefusal } from '../helpers.js';
 import { MAX_SHORT, MAX_TEXT, MAX_TITLE } from '../../middleware/validate.js';
+import { RECIPE_COURSES, RECIPE_KASHRUT, MAX_RECIPE_TAGS, MAX_RECIPE_TAG_LENGTH } from '../../../public/utils/recipe-taxonomy.js';
 
 // Dieselbe Form wie in paths/family.js.
 const apiError = (description) => ({
@@ -69,6 +70,24 @@ function recipeInput({ replace }) {
               ],
               description: 'The meals the recipe suits (`breakfast`, `lunch`, `dinner`, `snack`), as a list or as comma-separated text. Unknown entries are dropped; an empty list or `""` means none. '
                 + (replace ? 'Left out, the stored choice stays; `null` means all four.' : 'Left out or `null`, all four.'),
+            },
+            course: {
+              type: ['string', 'null'],
+              enum: [...RECIPE_COURSES, null, ''],
+              description: `What kind of dish it is: ${RECIPE_COURSES.map((c) => `\`${c}\``).join(', ')}. \`null\` or \`""\` means none. Left out${replace ? ', the stored value stays' : ', none'}.`,
+            },
+            kashrut: {
+              type: ['string', 'null'],
+              enum: [...RECIPE_KASHRUT, null, ''],
+              description: `${RECIPE_KASHRUT.map((c) => `\`${c}\``).join(', ')}, or \`null\` / \`""\` for none. Left out${replace ? ', the stored value stays' : ', none'}.`,
+            },
+            tags: {
+              anyOf: [
+                { type: 'array', items: { type: 'string' } },
+                { type: 'string' },
+                { type: 'null' },
+              ],
+              description: `Free tags, as a list or as comma-separated text: trimmed, a leading "#" dropped, at most ${MAX_RECIPE_TAG_LENGTH} characters each, duplicates ignoring case removed, at most ${MAX_RECIPE_TAGS} per recipe. The list replaces the stored tags as a whole; \`null\` or an empty list removes them. Left out${replace ? ', the stored tags stay' : ', none'}.`,
             },
             image_data: {
               type: ['string', 'null'],
