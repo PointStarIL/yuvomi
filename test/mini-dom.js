@@ -62,6 +62,7 @@ class MiniElement {
 
   appendChild(node) { this.childNodes.push(node); return node; }
   append(...nodes) { for (const n of nodes) this.childNodes.push(typeof n === 'string' ? new MiniText(n) : n); }
+  prepend(...nodes) { this.childNodes.unshift(...nodes.map((n) => (typeof n === 'string' ? new MiniText(n) : n))); }
   replaceChildren(...nodes) { this.childNodes = []; this.append(...nodes); }
 
   insertAdjacentHTML(position, html) {

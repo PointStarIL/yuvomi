@@ -32,6 +32,7 @@ import { mayWritePath } from '/utils/module-access.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
 import { ingredientMatchKey } from '/utils/ingredient-match-key.js';
 import { locationLabel } from '/utils/pantry-locations.js';
+import { RECIPE_COURSES, RECIPE_KASHRUT, normalizeCourse, normalizeKashrut, normalizeTags, MAX_RECIPE_TAG_LENGTH, MAX_RECIPE_TAGS } from '/utils/recipe-taxonomy.js';
 import { parseInstructions, loadProgress, saveProgress } from '/utils/recipe-steps.js';
 
 let _container = null;
@@ -61,6 +62,12 @@ const state = {
   // sichtbar, sobald mindestens ein gespiegeltes Rezept existiert (siehe
   // renderSourceFilter).
   sourceFilter: 'all',
+  // Gericht-Art, Koscher-Art und Tag: '' = nicht gefiltert. Sortierung:
+  // 'name' | 'newest' | 'course' | 'kashrut'. Nur fuer den Besuch der Seite.
+  courseFilter: '',
+  kashrutFilter: '',
+  tagFilter: '',
+  sort: 'name',
   // Rezept-IDs, die im Wochenplan der AKTUELLEN Woche stehen (loadPlannedRecipes).
   plannedRecipeIds: new Set(),
   // Gewaehlte Portionen je Rezept (R24, E12): der Stepper ueber den Zutaten.
@@ -166,6 +173,7 @@ async function reportError(err, {
     state.sourceFilter = 'all';
   }
   renderSourceFilter();
+  renderFacets();
   renderRecipeList({ repaint: true });
   // Der Ausloeser ist mit der Liste neu gebaut: den Fokus auf seinen
   // Nachfolger tragen.
@@ -243,13 +251,41 @@ function listedRecipes() {
 // die Rezeptliste ist vollständig geladen, ein Server-Roundtrip wäre Umweg.
 function filteredRecipes() {
   const q = state.query.toLowerCase();
-  return listedRecipes().filter((r) => {
+  const tag = state.tagFilter.toLowerCase();
+  const list = listedRecipes().filter((r) => {
     if (state.sourceFilter !== 'all' && r.source !== state.sourceFilter) return false;
+    if (state.courseFilter && r.course !== state.courseFilter) return false;
+    if (state.kashrutFilter && r.kashrut !== state.kashrutFilter) return false;
+    if (tag && !(r.tags ?? []).some((x) => x.toLowerCase() === tag)) return false;
     if (!q) return true;
     return r.title?.toLowerCase().includes(q)
       || r.notes?.toLowerCase().includes(q)
+      || (r.tags ?? []).some((x) => x.toLowerCase().includes(q))
       || (r.ingredients ?? []).some((i) => i.name?.toLowerCase().includes(q));
   });
+  return sortRecipes(list);
+}
+
+const byTitle = (a, b) => String(a.title ?? '').localeCompare(String(b.title ?? ''), undefined, { sensitivity: 'base' });
+
+/** Sortierung der sichtbaren Liste; die Reihenfolge aus dem Server ist Name A-Z. */
+function sortRecipes(list) {
+  const rank = (order, value) => { const i = order.indexOf(value); return i < 0 ? order.length : i; };
+  const sorted = [...list];
+  if (state.sort === 'newest') sorted.sort((a, b) => b.id - a.id);
+  else if (state.sort === 'course') sorted.sort((a, b) => rank(RECIPE_COURSES, a.course) - rank(RECIPE_COURSES, b.course) || byTitle(a, b));
+  else if (state.sort === 'kashrut') sorted.sort((a, b) => rank(RECIPE_KASHRUT, a.kashrut) - rank(RECIPE_KASHRUT, b.kashrut) || byTitle(a, b));
+  return sorted;
+}
+
+const courseText = (course) => t(`recipes.courseOption.${course}`);
+const kashrutText = (kashrut) => t(`recipes.kashrutOption.${kashrut}`);
+
+/** Alle Tags der Sammlung, ohne Dubletten (Gross-/Kleinschreibung egal), alphabetisch. */
+function allTags() {
+  const seen = new Map();
+  for (const r of state.recipes) for (const tag of r.tags ?? []) if (!seen.has(tag.toLowerCase())) seen.set(tag.toLowerCase(), tag);
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
 function mealCategories() {
@@ -529,7 +565,14 @@ export async function render(container, { signal } = {}) {
     empty: { icon: 'book-text', title: t('recipes.pickOne'), hint: t('recipes.pickOneHint') },
   }));
 
-  page.append(...[title, toolbar, split, fab].filter(Boolean));
+  // Filter nach Gericht-Art, Koscher-Art und Tag plus Sortierung: eine Zeile
+  // zwischen Kopf und Liste (renderFacets fuellt sie nach dem Laden).
+  const facets = document.createElement('div');
+  facets.className = 'recipes-facets';
+  facets.id = 'recipes-facets';
+  facets.hidden = true;
+
+  page.append(...[title, toolbar, facets, split, fab].filter(Boolean));
   container.replaceChildren(page);
   renderKitchenTabsBar(container, '/recipes');
 
@@ -551,6 +594,7 @@ export async function render(container, { signal } = {}) {
   // Einhaengen jetzt schriebe in eine fremde Adresse.
   if (signal?.aborted || !page.isConnected) return;
   renderSourceFilter();
+  renderFacets();
   // VOR dem ersten Listenbau: der Baustein loest `?open=` beim Einhaengen ein
   // und braucht dafuer die geladenen Rezepte, nicht die Zeilen -
   // renderRecipeList() setzt danach die Markierung (refresh).
@@ -700,6 +744,78 @@ function renderSourceFilter() {
   if (window.lucide) window.lucide.createIcons({ el });
 }
 
+/* FILTER UND SORTIERUNG NACH GERICHT-ART, KOSCHER-ART UND TAG. Eine Zeile mit
+ * Auswahlfeldern unter dem Kopf: ein Feld erscheint erst, wenn mindestens ein
+ * Rezept den Wert traegt (sonst ein Filter ohne Treffer), die leere Option
+ * traegt den Namen des Feldes und heisst „alle". Die Felder bleiben im DOM
+ * stehen und werden nur nachgezogen - ein Neubau nach jeder Wahl nahme dem
+ * Feld den Fokus. */
+function renderFacets() {
+  const el = _container?.querySelector('#recipes-facets');
+  if (!el) return;
+  const hasCourse = state.recipes.some((r) => r.course);
+  const hasKashrut = state.recipes.some((r) => r.kashrut);
+  const tags = allTags();
+  el.hidden = state.recipes.length < 2;
+  if (el.hidden) return;
+
+  if (!hasCourse) state.courseFilter = '';
+  if (!hasKashrut) state.kashrutFilter = '';
+  if (state.tagFilter && !tags.some((x) => x.toLowerCase() === state.tagFilter.toLowerCase())) state.tagFilter = '';
+
+  const sig = [hasCourse, hasKashrut, tags.join('\u0001'), document.documentElement.lang].join('|');
+  if (el.dataset.sig !== sig) {
+    el.dataset.sig = sig;
+    const select = (id, label, options) => `
+      <select class="form-input recipes-facet" id="${id}" aria-label="${esc(label)}">
+        <option value="">${esc(label)}</option>
+        ${options.map(([value, text]) => `<option value="${esc(value)}">${esc(text)}</option>`).join('')}
+      </select>`;
+    const sorts = [['name', 'sortName'], ['newest', 'sortNewest'], ['course', 'sortCourse'], ['kashrut', 'sortKashrut']];
+    el.innerHTML = [
+      hasCourse ? select('recipes-facet-course', t('recipes.courseLabel'), RECIPE_COURSES.map((c) => [c, courseText(c)])) : '',
+      hasKashrut ? select('recipes-facet-kashrut', t('recipes.kashrutLabel'), RECIPE_KASHRUT.map((k) => [k, kashrutText(k)])) : '',
+      tags.length ? select('recipes-facet-tag', t('recipes.tagsLabel'), tags.map((x) => [x, x])) : '',
+      `<select class="form-input recipes-facet recipes-facet--sort" id="recipes-facet-sort" aria-label="${esc(t('recipes.sortLabel'))}" title="${esc(t('recipes.sortLabel'))}">
+        ${sorts.map(([value, key]) => `<option value="${value}">${esc(t(`recipes.${key}`))}</option>`).join('')}
+      </select>`,
+      `<button type="button" class="btn btn--ghost btn--sm recipes-facet__reset" id="recipes-facet-reset" hidden>${esc(t('common.filtersResetDefault'))}</button>`,
+    ].join('');
+  }
+  if (!el._wired) {
+    el._wired = true;
+    el.addEventListener('change', (e) => {
+      const id = e.target?.id;
+      if (id === 'recipes-facet-course') state.courseFilter = e.target.value;
+      else if (id === 'recipes-facet-kashrut') state.kashrutFilter = e.target.value;
+      else if (id === 'recipes-facet-tag') state.tagFilter = e.target.value;
+      else if (id === 'recipes-facet-sort') state.sort = e.target.value;
+      else return;
+      syncFacetValues(el);
+      renderRecipeList();
+    });
+    el.addEventListener('click', (e) => {
+      if (!e.target.closest('#recipes-facet-reset')) return;
+      state.courseFilter = '';
+      state.kashrutFilter = '';
+      state.tagFilter = '';
+      syncFacetValues(el);
+      renderRecipeList();
+    });
+  }
+  syncFacetValues(el);
+}
+
+function syncFacetValues(el) {
+  const set = (id, value) => { const f = el.querySelector(`#${id}`); if (f) f.value = value; };
+  set('recipes-facet-course', state.courseFilter);
+  set('recipes-facet-kashrut', state.kashrutFilter);
+  set('recipes-facet-tag', state.tagFilter);
+  set('recipes-facet-sort', state.sort);
+  const reset = el.querySelector('#recipes-facet-reset');
+  if (reset) reset.hidden = !(state.courseFilter || state.kashrutFilter || state.tagFilter);
+}
+
 /**
  * Baut die Liste neu und gleicht danach Liste + Detail ab - auf JEDEM Weg,
  * auch dem Leer-, Fehler- und Kein-Treffer-Zustand: sonst stuende rechts ein
@@ -709,6 +825,7 @@ function renderSourceFilter() {
  * dem Formular.
  */
 function renderRecipeList({ repaint = false } = {}) {
+  renderFacets();
   buildRecipeList();
   syncRowMode();
   _md?.refresh({ repaint });
@@ -1057,6 +1174,15 @@ function buildRecipeList() {
     const sub = document.createElement('span');
     sub.className = 'recipe-row__sub';
     sub.appendChild(meta);
+    // Gericht-Art und Koscher-Art stehen in der Zeile, damit Sortierung und
+    // Filter nach ihnen auch ohne Aufklappen lesbar sind - vor der Zutatenzahl.
+    const taxText = [normalizeCourse(recipe.course) && courseText(recipe.course), normalizeKashrut(recipe.kashrut) && kashrutText(recipe.kashrut)].filter(Boolean).join(' · ');
+    if (taxText) {
+      const tax = document.createElement('span');
+      tax.className = 'list-row__meta recipe-row__tax';
+      tax.textContent = taxText;
+      sub.prepend(tax);
+    }
 
     // Zweite Meta-Angabe, getrennt ueber den Mittelpunkt des +-Kombinators
     // (Hausform, Vorrat): neutraler Sekundaertext, keine Flaeche - der
@@ -1152,6 +1278,26 @@ function buildRecipeList() {
  * zwei Orte - den Aufklapper der Zeile (unter der Schwelle) und die
  * Detailspalte (Liste + Detail), damit beide nie auseinanderlaufen.
  */
+/** Gericht-Art, Koscher-Art und Tags als Chips-Reihe im Detail; ohne alles nichts. */
+function taxonomyChipsEl(recipe) {
+  const course = normalizeCourse(recipe.course);
+  const kashrut = normalizeKashrut(recipe.kashrut);
+  const tags = recipe.tags ?? [];
+  if (!course && !kashrut && !tags.length) return null;
+  const row = document.createElement('div');
+  row.className = 'recipe-taxonomy';
+  const chip = (text, className) => {
+    const el = document.createElement('span');
+    el.className = `recipe-taxonomy__chip ${className}`;
+    el.textContent = text;
+    return el;
+  };
+  if (course) row.appendChild(chip(courseText(course), 'recipe-taxonomy__chip--course'));
+  if (kashrut) row.appendChild(chip(kashrutText(kashrut), `recipe-taxonomy__chip--kashrut recipe-taxonomy__chip--${kashrut}`));
+  for (const tag of tags) row.appendChild(chip(`#${tag}`, 'recipe-taxonomy__chip--tag'));
+  return row;
+}
+
 function fillRecipeDetail(detail, recipe) {
   const ingredients = recipe.ingredients ?? [];
   const mealTypes = normalizeRecipeMealTypes(recipe.meal_types);
@@ -1172,6 +1318,8 @@ function fillRecipeDetail(detail, recipe) {
   // BEI `read` IMMER (Regel 9 in utils/module-access.js): im Formular stehen
   // die Mahlzeiten als Chips, und wer es nicht oeffnen darf, saehe „gilt fuer
   // alle" sonst nur daran, dass hier nichts steht.
+  const taxonomy = taxonomyChipsEl(recipe);
+  if (taxonomy) detail.appendChild(taxonomy);
   const showMealTypeBadges = mealTypes.length && (readOnly() || mealTypes.length < mealTypeOptions().length);
   if (showMealTypeBadges) {
     const badges = document.createElement('div');
@@ -1904,6 +2052,28 @@ function openRecipeModal(mode, recipe = null) {
           <input type="hidden" id="recipe-meal-types-value" value="">
         </div>
       </div>
+      <div class="form-group">
+        <label class="form-label" for="recipe-course">${esc(t('recipes.courseLabel'))}</label>
+        <select id="recipe-course" class="form-input">
+          <option value="">${esc(t('recipes.courseNone'))}</option>
+          ${RECIPE_COURSES.map((c) => `<option value="${c}">${esc(courseText(c))}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="recipe-kashrut">${esc(t('recipes.kashrutLabel'))}</label>
+        <select id="recipe-kashrut" class="form-input">
+          <option value="">${esc(t('recipes.kashrutNone'))}</option>
+          ${RECIPE_KASHRUT.map((k) => `<option value="${k}">${esc(kashrutText(k))}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group recipe-tags-field">
+        <label class="form-label" for="recipe-tag-input">${esc(t('recipes.tagsLabel'))}</label>
+        <div class="recipe-tags-field__chips" id="recipe-tags-chips"></div>
+        <input id="recipe-tag-input" class="form-input" type="text" maxlength="${MAX_RECIPE_TAG_LENGTH}" autocomplete="off"
+               list="recipe-tag-suggestions" placeholder="${esc(t('recipes.tagsPlaceholder'))}">
+        <datalist id="recipe-tag-suggestions">${allTags().map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist>
+        <input type="hidden" id="recipe-tags-value" value="">
+      </div>
       <div class="form-group recipe-servings-field">
         <label class="form-label" for="recipe-servings">${t('recipes.servingsLabel')}</label>
         <input id="recipe-servings" class="form-input" type="number" min="1" max="99" step="1" inputmode="numeric"
@@ -1947,6 +2117,9 @@ function openRecipeModal(mode, recipe = null) {
       panel.querySelector('#recipe-notes').value = isEdit && recipe.notes ? recipe.notes : '';
       panel.querySelector('#recipe-url').value = isEdit && recipe.recipe_url ? recipe.recipe_url : '';
       panel.querySelector('#recipe-servings').value = isEdit && recipe.servings ? String(recipe.servings) : '';
+      panel.querySelector('#recipe-course').value = isEdit ? (normalizeCourse(recipe.course) ?? '') : '';
+      panel.querySelector('#recipe-kashrut').value = isEdit ? (normalizeKashrut(recipe.kashrut) ?? '') : '';
+      wireTagsField(panel, isEdit ? recipe.tags ?? [] : []);
 
       /* BILD (#1059, Schritt 2) - dasselbe Vorgehen wie beim Gegenstandsfoto:
        * Auswahl, Zuschnitt und Groessenpruefung macht `pickCroppedImage`.
@@ -2072,6 +2245,47 @@ function openRecipeModal(mode, recipe = null) {
 
 // Reicht `context` durch (#1997): ein Wrapper, der nur `force` weitergibt,
 // schloesse nach einer spaeten Antwort wieder den Dialog, der gerade offen ist.
+/**
+ * Das Tag-Feld des Formulars: Chips mit Entfernen-Knopf, Eingabe per Enter oder
+ * Komma (oder Auswahl aus den bekannten Tags), Rueckschritt nimmt das letzte weg.
+ * Der Text, der beim Speichern noch im Feld steht, zaehlt mit. Das versteckte
+ * Feld traegt die Liste als Wert, damit der Dialog bei „Aenderungen verwerfen?"
+ * eine geaenderte Auswahl bemerkt (wie bei den Mahlzeit-Chips).
+ */
+function wireTagsField(panel, initial) {
+  const input = panel.querySelector('#recipe-tag-input');
+  const chips = panel.querySelector('#recipe-tags-chips');
+  const value = panel.querySelector('#recipe-tags-value');
+  let tags = normalizeTags(initial);
+  const draw = () => {
+    chips.replaceChildren(...tags.map((tag) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'recipe-tag-chip';
+      chip.setAttribute('aria-label', t('recipes.tagRemove', { tag }));
+      chip.append(`#${tag}`, Object.assign(document.createElement('span'), { textContent: '×', ariaHidden: 'true' }));
+      chip.addEventListener('click', () => { tags = tags.filter((x) => x !== tag); draw(); input.focus(); });
+      return chip;
+    }));
+    value.value = tags.join('\u0001');
+    input.disabled = tags.length >= MAX_RECIPE_TAGS;
+  };
+  const add = (raw) => { tags = normalizeTags([...tags, ...String(raw ?? '').split(',')]); draw(); };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      add(input.value);
+      input.value = '';
+    } else if (e.key === 'Backspace' && !input.value && tags.length) {
+      tags = tags.slice(0, -1);
+      draw();
+    }
+  });
+  input.addEventListener('change', () => { add(input.value); input.value = ''; });
+  panel._tags = () => { add(input.value); input.value = ''; return tags; };
+  draw();
+}
+
 function closeModal({ force = false, context = null } = {}) {
   return closeSharedModal({ force, context });
 }
@@ -2084,6 +2298,9 @@ async function saveRecipe(panel, mode, recipe) {
   const notes = panel.querySelector('#recipe-notes')?.value.trim() || null;
   const recipe_url = panel.querySelector('#recipe-url')?.value.trim() || null;
   const meal_types = [...panel.querySelectorAll('#recipe-meal-types [aria-pressed="true"]')].map((chip) => chip.dataset.mealType);
+  const course = panel.querySelector('#recipe-course')?.value || null;
+  const kashrut = panel.querySelector('#recipe-kashrut')?.value || null;
+  const tags = panel._tags?.();
 
   if (!title) {
     // Fehler am Feld statt als ortloser Toast (geteiltes Muster, Critique P1).
@@ -2120,11 +2337,11 @@ async function saveRecipe(panel, mode, recipe) {
   try {
     let createdId = null;
     if (mode === 'create') {
-      const res = await api.post('/recipes', { title, notes, recipe_url, meal_types, servings, ingredients, ...bildFeld });
+      const res = await api.post('/recipes', { title, notes, recipe_url, meal_types, course, kashrut, ...(tags ? { tags } : {}), servings, ingredients, ...bildFeld });
       state.recipes.push(res.data);
       createdId = res.data?.id ?? null;
     } else {
-      const res = await api.put(`/recipes/${recipe.id}`, { title, notes, recipe_url, meal_types, servings, ingredients, ...bildFeld });
+      const res = await api.put(`/recipes/${recipe.id}`, { title, notes, recipe_url, meal_types, course, kashrut, ...(tags ? { tags } : {}), servings, ingredients, ...bildFeld });
       // Neue Portionen: die Wahl des Steppers beginnt wieder bei der gespeicherten Zahl.
       state.servingsChoice.delete(recipe.id);
       const idx = state.recipes.findIndex((r) => r.id === recipe.id);
@@ -2407,6 +2624,7 @@ function selectOwnRecipe(id) {
     state.sourceFilter = 'all';
     _search?.clear();
     renderSourceFilter();
+    renderFacets();
     renderRecipeList();
   }
   _md.select(id);

@@ -648,7 +648,7 @@ test('Rezepte bei `read`: das Detail zeigt, was sonst nur im Formular stand', as
   assert.equal((lesend.html.match(/meal-type-badge--/g) ?? []).length, 4);
   assert.match(lesend.html, /recipe-detail__ingredient-category">Backwaren</, 'die Einkaufskategorie je Zutat');
   // Seit R18 steht die Menge in ihrer eigenen Spalte vor dem Namen (eigener Test unten).
-  assert.match(lesend.html, /<span class="recipe-detail__ingredient-quantity">250 g<\/span><span class="recipe-detail__ingredient-name">Mehl/);
+  assert.match(lesend.html, /<span class="recipe-detail__ingredient-quantity">250 g<\/span><span class="recipe-detail__ingredient-name">(?:<input type="checkbox" class="recipe-check">)?Mehl/);
   assert.match(lesend.html, /Teig ruhen lassen/);
   // Der Mini-DOM schreibt `href` nicht ins Markup; der Link ist am Text zu erkennen.
   assert.match(lesend.html, /<a class="btn btn--ghost">.*recipes\.openLink/, 'der Link ist Lesen und bleibt');

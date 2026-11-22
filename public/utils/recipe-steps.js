@@ -29,8 +29,8 @@ export function parseInstructions(text) {
     const bullet = /^[-•*]\s+/.test(line);
     const clean = line.replace(/^[-•*]\s+/, '').trim();
     if (!clean) continue;
-    if (!bullet && clean.length <= MAX_HEADING && /(?::|\s?[-–])$/.test(clean)) {
-      blocks.push({ type: 'heading', text: clean.replace(/\s?[-–:]$/, '').trim() });
+    if (!bullet && clean.length <= MAX_HEADING && /(?::|\s?[-\u2013])$/.test(clean)) {
+      blocks.push({ type: 'heading', text: clean.replace(/\s?[-\u2013:]$/, '').trim() });
     } else if (bullet || NOTE_WORDS.test(clean) || (first && /^מתכון\s+ל/.test(clean))) {
       blocks.push({ type: 'note', text: clean });
     } else {
