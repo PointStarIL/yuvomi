@@ -34,3 +34,23 @@ test('normalizeTags: accepts comma text, cuts long tags and caps the count', () 
   assert.deepEqual(normalizeTags(null), []);
   assert.deepEqual(normalizeTags(undefined), []);
 });
+
+// ---- layout: the filter row lives in the page head, not across the whole page ----
+import { readFileSync } from 'node:fs';
+
+test('the filter row is the head\'s bar row, so it sits on the module column', () => {
+  const js = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
+  assert.match(js, /facets\.className = 'recipes-facets page-toolbar__bar'/);
+  assert.match(js, /toolbar\.appendChild\(facets\)/);
+  assert.doesNotMatch(js, /page\.append\([^)]*facets/, 'not a child of the page itself: that ran across the whole window width');
+});
+
+test('cooking mode: opens above everything, closes with Escape or the X at the line end, keeps the ticks', () => {
+  const js = readFileSync(new URL('../public/pages/recipes.js', import.meta.url), 'utf8');
+  assert.match(js, /overlay\.setAttribute\('aria-modal', 'true'\)/);
+  assert.match(js, /bar\.append\(title, closeBtn\)/, 'title first, X last: the X lands on the line end (left in Hebrew)');
+  assert.match(js, /e\.key === 'Escape'/);
+  assert.match(js, /inertOutside\(overlay\)/);
+  const css = readFileSync(new URL('../public/styles/recipes.css', import.meta.url), 'utf8');
+  assert.match(css, /\.cook-mode \.recipe-detail__ingredient-match[^{]*\{\s*display:\s*none/, 'no pantry detours while cooking');
+});

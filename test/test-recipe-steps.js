@@ -4,7 +4,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseInstructions, stepKey, loadProgress, saveProgress } from '../public/utils/recipe-steps.js';
+import { parseInstructions, stepKey, loadProgress, saveProgress, PROGRESS_TTL_MS } from '../public/utils/recipe-steps.js';
 
 const memory = () => {
   const m = new Map();
@@ -61,4 +61,23 @@ test('progress: a broken or blocked storage reads as empty and never throws', ()
   const p = loadProgress(1, broken);
   assert.equal(p.i.size + p.s.size, 0);
   assert.doesNotThrow(() => saveProgress(1, { i: new Set(['a']), s: new Set() }, broken));
+});
+
+test('progress: ticks survive at least 30 minutes, and any new tick renews the clock', () => {
+  const store = memory();
+  const t0 = 1_000_000;
+  saveProgress(3, { i: new Set(['mehl']), s: new Set() }, store, t0);
+  assert.equal(loadProgress(3, store, t0 + 30 * 60 * 1000).i.has('mehl'), true, '30 minutes later');
+  assert.equal(loadProgress(3, store, t0 + PROGRESS_TTL_MS - 1000).i.has('mehl'), true, 'just inside the TTL');
+  saveProgress(3, { i: new Set(['mehl', 'salz']), s: new Set() }, store, t0 + 5 * 60 * 60 * 1000);
+  assert.equal(loadProgress(3, store, t0 + 10 * 60 * 60 * 1000).i.size, 2, 'renewed by the later tick');
+});
+
+test('progress: stale or unstamped ticks are dropped and removed from storage', () => {
+  const store = memory();
+  saveProgress(4, { i: new Set(['a']), s: new Set() }, store, 0);
+  assert.equal(loadProgress(4, store, PROGRESS_TTL_MS + 1).i.size, 0);
+  assert.equal(store._m.size, 0, 'the stale record is removed');
+  store.setItem('yuvomi:recipe-progress:5', JSON.stringify({ i: ['x'], s: [] }));
+  assert.equal(loadProgress(5, store).i.size, 0, 'no time stamp: dropped');
 });

@@ -800,11 +800,9 @@ button.recipe-detail__ingredient-match:hover {
 
 /* ---- Course, kashrut and tags: filter row, chips in the detail, tag field in the form ---- */
 .recipes-facets {
-  display: flex;
+  /* Bar-Zeile des Kopfes (`.page-toolbar__bar`): Breite und Fluchtlinie kommen vom Kopf. */
   flex-wrap: wrap;
-  align-items: center;
   gap: var(--space-2);
-  margin-block: var(--space-2) var(--space-3);
 }
 
 
@@ -884,4 +882,81 @@ button.recipe-detail__ingredient-match:hover {
 
 .recipe-tag-chip:hover {
   background-color: var(--color-surface-hover);
+}
+
+
+/* ---- Cooking mode: the recipe alone on screen, above everything ---- */
+.cook-mode {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal, 1000) + 10);
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface-work, var(--color-bg, #fff));
+  color: var(--color-text-primary);
+  overscroll-behavior: contain;
+}
+
+.cook-mode__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--space-px) solid var(--color-border-subtle);
+}
+
+.cook-mode__title {
+  margin: 0;
+  min-inline-size: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 4 4;
+  -webkit-hyphenate-limit-before: 4;
+  -webkit-hyphenate-limit-after: 4;
+}
+
+.cook-mode__close {
+  flex-shrink: 0;
+}
+
+.cook-mode__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  inline-size: min(100%, 52rem);
+  margin-inline: auto;
+  padding: var(--space-4);
+  padding-block-end: var(--space-8);
+}
+
+/* No detours while cooking: the pantry links and the bulk-link button stay out. */
+.cook-mode .recipe-detail__ingredient-match,
+.cook-mode .recipe-detail__match-open {
+  display: none;
+}
+
+/* Bigger touch targets than the detail column. */
+.cook-mode .recipe-detail__ingredient {
+  min-block-size: 2.75rem;
+  align-items: center;
+}
+
+.cook-mode .recipe-check {
+  inline-size: 24px;
+  block-size: 24px;
+}
+
+.cook-mode .recipe-step__label {
+  padding-block: var(--space-3);
+}
+
+.cook-mode .recipe-step__text {
+  font-size: var(--text-lg);
+  line-height: 1.7;
 }

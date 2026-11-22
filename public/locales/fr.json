@@ -3761,6 +3761,7 @@
         "sortNewest": "Plus récentes d'abord",
         "sortCourse": "Par type de plat",
         "sortKashrut": "Par cacheroute",
+        "cookingMode": "Mode cuisine",
         "notesLabel": "Notes",
         "notesPlaceholder": "Facultatif...",
         "urlLabel": "Lien de recette",

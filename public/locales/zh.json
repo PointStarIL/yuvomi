@@ -3761,6 +3761,7 @@
         "sortNewest": "最新优先",
         "sortCourse": "按菜品类别",
         "sortKashrut": "按洁食类型",
+        "cookingMode": "烹饪模式",
         "notesLabel": "备注",
         "notesPlaceholder": "可选...",
         "urlLabel": "食谱链接",

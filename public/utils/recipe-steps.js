@@ -14,6 +14,10 @@
 const NOTE_WORDS = /^(?:דיסקליימר|חשוב|דגש(?:ים)?(?:\s+נוספים)?|הערה|הערות|טיפ|טיפים|שימו\s+לב|שימי\s+לב|לתשומת\s+לב|הערות\s+המתכון)(?=[\s:,.!-]|$)/;
 const MAX_HEADING = 80;
 const STORAGE_PREFIX = 'yuvomi:recipe-progress:';
+/** Ticks live this long after the LAST tick (every new tick renews it): a break to check
+ *  the pantry or a phone call must not wipe what was already done, but last week's
+ *  ticks must not greet the next cook either. Far above the 30 minutes asked for. */
+export const PROGRESS_TTL_MS = 6 * 60 * 60 * 1000;
 
 /**
  * @param {string|null|undefined} text
@@ -57,12 +61,18 @@ function storageFor(storage) {
 }
 
 /** @returns {{ i: Set<string>, s: Set<string> }} ingredient keys and step keys already done */
-export function loadProgress(recipeId, storage) {
+export function loadProgress(recipeId, storage, now = Date.now()) {
   const out = { i: new Set(), s: new Set() };
   try {
-    const raw = storageFor(storage)?.getItem(STORAGE_PREFIX + recipeId);
+    const store = storageFor(storage);
+    const raw = store?.getItem(STORAGE_PREFIX + recipeId);
     if (!raw) return out;
     const data = JSON.parse(raw);
+    // Older than the TTL (or no time stamp): gone. An entry from before the stamp existed is dropped too.
+    if (typeof data?.t !== 'number' || now - data.t > PROGRESS_TTL_MS) {
+      store.removeItem(STORAGE_PREFIX + recipeId);
+      return out;
+    }
     for (const k of Array.isArray(data?.i) ? data.i : []) if (typeof k === 'string') out.i.add(k);
     for (const k of Array.isArray(data?.s) ? data.s : []) if (typeof k === 'string') out.s.add(k);
   } catch { /* unreadable or blocked: start empty */ }
@@ -70,11 +80,11 @@ export function loadProgress(recipeId, storage) {
 }
 
 /** Persist; an empty record removes the entry so finished recipes leave nothing behind. */
-export function saveProgress(recipeId, progress, storage) {
+export function saveProgress(recipeId, progress, storage, now = Date.now()) {
   try {
     const store = storageFor(storage);
     if (!store) return;
     if (!progress.i.size && !progress.s.size) store.removeItem(STORAGE_PREFIX + recipeId);
-    else store.setItem(STORAGE_PREFIX + recipeId, JSON.stringify({ i: [...progress.i], s: [...progress.s] }));
+    else store.setItem(STORAGE_PREFIX + recipeId, JSON.stringify({ t: now, i: [...progress.i], s: [...progress.s] }));
   } catch { /* storage full or blocked: the checkmarks just do not persist */ }
 }

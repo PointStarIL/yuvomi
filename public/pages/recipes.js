@@ -32,6 +32,8 @@ import { mayWritePath } from '/utils/module-access.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
 import { ingredientMatchKey } from '/utils/ingredient-match-key.js';
 import { locationLabel } from '/utils/pantry-locations.js';
+import { inertOutside } from '/utils/background-inert.js';
+import { attachOverlay } from '/utils/overlay-history.js';
 import { RECIPE_COURSES, RECIPE_KASHRUT, normalizeCourse, normalizeKashrut, normalizeTags, MAX_RECIPE_TAG_LENGTH, MAX_RECIPE_TAGS } from '/utils/recipe-taxonomy.js';
 import { parseInstructions, loadProgress, saveProgress } from '/utils/recipe-steps.js';
 
@@ -565,14 +567,19 @@ export async function render(container, { signal } = {}) {
     empty: { icon: 'book-text', title: t('recipes.pickOne'), hint: t('recipes.pickOneHint') },
   }));
 
-  // Filter nach Gericht-Art, Koscher-Art und Tag plus Sortierung: eine Zeile
-  // zwischen Kopf und Liste (renderFacets fuellt sie nach dem Laden).
+  // Filter nach Gericht-Art, Koscher-Art und Tag plus Sortierung
+  // (renderFacets fuellt sie nach dem Laden).
   const facets = document.createElement('div');
-  facets.className = 'recipes-facets';
+  facets.className = 'recipes-facets page-toolbar__bar';
   facets.id = 'recipes-facets';
   facets.hidden = true;
+  // In den Kopf, als dessen Bar-Zeile (layout.css `.page-toolbar__bar`): der Kopf
+  // sitzt auf der Spalte des Moduls. Als eigenes Kind der Seite lief die Zeile
+  // ueber die ganze Seitenbreite - die Felder standen weit ausserhalb der
+  // Spalte und die Sortierung am anderen Rand des Fensters.
+  toolbar.appendChild(facets);
 
-  page.append(...[title, toolbar, facets, split, fab].filter(Boolean));
+  page.append(...[title, toolbar, split, fab].filter(Boolean));
   container.replaceChildren(page);
   renderKitchenTabsBar(container, '/recipes');
 
@@ -1385,6 +1392,20 @@ function fillRecipeDetail(detail, recipe) {
     detailActions.appendChild(addToMeals);
   }
 
+  // Kochmodus: ohne Zutaten und ohne Text gibt es nichts zum Abhaken. Bewusst
+  // ohne data-action - er hat keinen Schreibweg und braucht keinen Riegel.
+  if (ingredients.length || recipe.notes) {
+    const cook = document.createElement('button');
+    cook.className = 'btn btn--secondary';
+    cook.type = 'button';
+    cook.insertAdjacentHTML('beforeend', '<i data-lucide="chef-hat" class="icon-md" aria-hidden="true"></i>');
+    const cookLabel = document.createElement('span');
+    cookLabel.textContent = t('recipes.cookingMode');
+    cook.appendChild(cookLabel);
+    cook.addEventListener('click', () => openCookingMode(recipe, cook));
+    detailActions.appendChild(cook);
+  }
+
   const addToShopping = shoppingTransferButton(recipe, ingredients);
   if (addToShopping) detailActions.appendChild(addToShopping);
 
@@ -1462,7 +1483,7 @@ function progressBoxEl(recipeId, kind, key, checked) {
 
 /** Zieht Haken, Durchstreichung und Zaehler aller Instanzen dieses Rezepts nach (Aufklapper + Spalte). */
 function syncProgressUi(recipeId) {
-  const root = _container ?? document;
+  const root = document;
   const progress = loadProgress(recipeId);
   const id = CSS.escape(String(recipeId));
   for (const box of root.querySelectorAll(`input[data-recipe-progress="${id}"]`)) {
@@ -1479,6 +1500,73 @@ function updateProgressCounter(counter) {
   const done = boxes.filter((b) => b.checked).length;
   counter.textContent = `${done}/${boxes.length}`;
   counter.classList.toggle('is-complete', boxes.length > 0 && done === boxes.length);
+}
+
+/* KOCHMODUS: das Rezept allein auf dem Bildschirm, zum Abhaken waehrend man
+ * kocht. Eine Ebene ueber allem (auch der Seitenleiste), der Hintergrund ist
+ * `inert`; Zutaten und Schritte sind dieselben Abschnitte wie im Detail, also
+ * dieselben Haken. Das X (am Zeilenende, im Hebraeischen links) schliesst die
+ * Ebene - die Haken bleiben dabei stehen (utils/recipe-steps.js haelt sie
+ * mehrere Stunden), wer zwischendurch das Vorrat nachsieht, verliert nichts.
+ * Der Bildschirm bleibt an, solange die Ebene offen ist (Wake Lock, wo es ihn gibt). */
+let _cook = null;
+
+async function openCookingMode(recipe, opener = null) {
+  if (_cook) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'cook-mode';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', recipe.title);
+
+  const bar = document.createElement('div');
+  bar.className = 'cook-mode__bar';
+  const title = document.createElement('h2');
+  title.className = 'cook-mode__title';
+  title.textContent = recipe.title;
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'btn btn--ghost btn--icon cook-mode__close';
+  closeBtn.setAttribute('aria-label', t('common.close'));
+  closeBtn.title = t('common.close');
+  closeBtn.insertAdjacentHTML('beforeend', '<i data-lucide="x" class="icon-lg" aria-hidden="true"></i>');
+  bar.append(title, closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'cook-mode__body';
+  if ((recipe.ingredients ?? []).length) {
+    body.appendChild(ingredientsSectionEl(recipe));
+    wireServingsSteppers(body, (stepper, value, factor) => {
+      state.servingsChoice.set(recipe.id, value);
+      rescaleIngredientSections(recipe, value, factor);
+    });
+  }
+  if (recipe.notes) body.appendChild(instructionsSectionEl(recipe));
+  overlay.append(bar, body);
+  document.body.appendChild(overlay);
+  if (window.lucide) window.lucide.createIcons({ el: overlay });
+
+  const releaseInert = inertOutside(overlay);
+  let lock = null;
+  try { lock = await navigator.wakeLock?.request?.('screen'); } catch { /* kein Wake Lock: der Bildschirm darf ausgehen */ }
+
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  function close() {
+    if (!_cook) return;
+    _cook = null;
+    document.removeEventListener('keydown', onKey);
+    try { lock?.release?.(); } catch { /* schon freigegeben */ }
+    releaseInert();
+    overlay.remove();
+    syncProgressUi(recipe.id);
+    opener?.focus?.();
+  }
+  _cook = { close };
+  // Die Zurueck-Geste (Telefon: Wischen von der Kante) schliesst die Ebene statt die Seite darunter zu wechseln (#871).
+  attachOverlay(overlay, close);
+  document.addEventListener('keydown', onKey);
+  closeBtn.addEventListener('click', close);
+  closeBtn.focus();
 }
 
 /** Der Abschnitt „Zubereitung": Ueberschriften getrennt, Schritte nummeriert und abhakbar. */
