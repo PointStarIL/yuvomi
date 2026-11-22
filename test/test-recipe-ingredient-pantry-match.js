@@ -656,7 +656,8 @@ test('die Zeile nennt nur bestehende Zuordnungen, der Weg zu den offenen steht e
   assert.match(kopf, /createElement\('h3'\)/, 'Abschnittskopf ist eine echte Ueberschrift unter dem <h2>-Titel');
   const detail = body('fillRecipeDetail');
   assert.match(detail, /ingredientsSectionEl\(recipe\)/, 'Zutaten stehen im Abschnitt mit Kopf');
-  assert.match(detail, /detailSectionEl\(t\('recipes\.notesLabel'\)\)/, 'Notizen stehen im Abschnitt mit Kopf');
+  assert.match(detail, /instructionsSectionEl\(recipe\)/, 'Notizen stehen im Abschnitt mit Kopf');
+  assert.match(body('instructionsSectionEl'), /detailSectionEl\(t\('recipes\.notesLabel'\)/, 'der Zubereitungs-Abschnitt traegt den Kopf der Notizen');
 
   const de = JSON.parse(readFileSync(new URL('../public/locales/de.json', import.meta.url), 'utf8'));
   for (const key of ['ingredientMatchOpen', 'ingredientMatchOpen_one', 'ingredientMatchBulkTitle', 'ingredientMatchBulkHint']) {

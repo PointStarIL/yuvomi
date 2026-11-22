@@ -3851,6 +3851,7 @@
         "emptyTitle": "Nog geen recepten",
         "emptyDescription": "Bewaar recepten met ingrediënten, notities en link.",
         "titlePlaceholder": "bijv. Pasta Carbonara",
+        "clearProgress": "Vinkjes wissen",
         "notesLabel": "Notities",
         "notesPlaceholder": "Optioneel...",
         "urlLabel": "Receptlink",

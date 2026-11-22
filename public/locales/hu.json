@@ -3851,6 +3851,7 @@
         "emptyTitle": "Még nincs recept",
         "emptyDescription": "Ments recepteket hozzávalókkal, jegyzetekkel és linkkel.",
         "titlePlaceholder": "pl. Spagetti Carbonara",
+        "clearProgress": "Jelölések törlése",
         "notesLabel": "Megjegyzések",
         "notesPlaceholder": "Opcionális...",
         "urlLabel": "Recept link",

@@ -3963,6 +3963,7 @@
         "emptyTitle": "Рецептов еще нет",
         "emptyDescription": "Сохраняйте рецепты с ингредиентами, заметками и ссылкой.",
         "titlePlaceholder": "напр. Паста Карбонара",
+        "clearProgress": "Сбросить отметки",
         "notesLabel": "Заметки",
         "notesPlaceholder": "Необязательно...",
         "urlLabel": "Ссылка на рецепт",

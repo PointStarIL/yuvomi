@@ -31,6 +31,7 @@ import { openDetailView, closeDetailView, detailFooterEl, withPrimaryEdit } from
 import { mayWritePath } from '/utils/module-access.js';
 import { errorSentence, isGone, isAlreadyDeleted } from '/utils/friendly-error.js';
 import { ingredientMatchKey } from '/utils/ingredient-match-key.js';
+import { parseInstructions, loadProgress, saveProgress } from '/utils/recipe-steps.js';
 
 let _container = null;
 /** Laufende Nummer fuer die Label-IDs der Portionen-Stepper (Spalte + Blatt). */
@@ -1208,14 +1209,7 @@ function fillRecipeDetail(detail, recipe) {
     });
   }
 
-  if (recipe.notes) {
-    const section = detailSectionEl(t('recipes.notesLabel'));
-    const notes = document.createElement('p');
-    notes.className = 'recipe-detail__notes';
-    notes.textContent = recipe.notes;
-    section.appendChild(notes);
-    detail.appendChild(section);
-  }
+  if (recipe.notes) detail.appendChild(instructionsSectionEl(recipe));
 
   // Die beiden Kreislauf-Ausgänge stehen im Detail, nicht in der Zeile, und
   // sind dort BESCHRIFTET. Grund: derselbe Weg hieß im Modul dreimal etwas
@@ -1293,6 +1287,109 @@ function detailSectionEl(title, { headExtraHtml = '' } = {}) {
   return section;
 }
 
+/* DIE ZUBEREITUNG ALS CHECKLISTE. `notes` ist ein Freitextfeld; die Gliederung
+ * (Ueberschrift, Schritt, Hinweis) liest utils/recipe-steps.js aus den Zeilen.
+ * Haken - bei Zutaten „schon dazugegeben", bei Schritten „schon gemacht" - stehen
+ * nur auf diesem Geraet (localStorage), nie im Rezept: wer kocht, soll das Rezept
+ * nicht veraendern, und ein zweites Handy kocht ohnehin seinen eigenen Durchgang. */
+
+/** Ein Haken fuer eine Zutat (`i`) oder einen Schritt (`s`). */
+function progressBoxEl(recipeId, kind, key, checked) {
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.className = 'recipe-check';
+  box.checked = checked;
+  box.dataset.recipeProgress = String(recipeId);
+  box.dataset.kind = kind;
+  box.dataset.key = key;
+  box.addEventListener('change', () => {
+    const progress = loadProgress(recipeId);
+    progress[kind][box.checked ? 'add' : 'delete'](key);
+    saveProgress(recipeId, progress);
+    syncProgressUi(recipeId);
+  });
+  return box;
+}
+
+/** Zieht Haken, Durchstreichung und Zaehler aller Instanzen dieses Rezepts nach (Aufklapper + Spalte). */
+function syncProgressUi(recipeId) {
+  const root = _container ?? document;
+  const progress = loadProgress(recipeId);
+  const id = CSS.escape(String(recipeId));
+  for (const box of root.querySelectorAll(`input[data-recipe-progress="${id}"]`)) {
+    const on = progress[box.dataset.kind].has(box.dataset.key);
+    box.checked = on;
+    box.closest('li')?.classList.toggle('is-done', on);
+  }
+  for (const counter of root.querySelectorAll(`[data-progress-count="${id}"]`)) updateProgressCounter(counter);
+}
+
+function updateProgressCounter(counter) {
+  const section = counter.closest('.recipe-detail__section');
+  const boxes = [...(section?.querySelectorAll('input[data-kind="s"]') ?? [])];
+  const done = boxes.filter((b) => b.checked).length;
+  counter.textContent = `${done}/${boxes.length}`;
+  counter.classList.toggle('is-complete', boxes.length > 0 && done === boxes.length);
+}
+
+/** Der Abschnitt „Zubereitung": Ueberschriften getrennt, Schritte nummeriert und abhakbar. */
+function instructionsSectionEl(recipe) {
+  const blocks = parseInstructions(recipe.notes);
+  const hasSteps = blocks.some((b) => b.type === 'step');
+  const progress = loadProgress(recipe.id);
+  const section = detailSectionEl(t('recipes.notesLabel'), {
+    headExtraHtml: hasSteps
+      ? `<span class="recipe-progress__tools"><span class="recipe-progress" data-progress-count="${esc(String(recipe.id))}" aria-live="polite"></span>`
+        + `<button type="button" class="btn btn--ghost btn--sm recipe-progress__clear" data-progress-clear="${esc(String(recipe.id))}">${esc(t('recipes.clearProgress'))}</button></span>`
+      : '',
+  });
+  section.classList.add('recipe-detail__instructions');
+  let list = null;
+  for (const block of blocks) {
+    if (block.type === 'heading') {
+      list = null;
+      const h = document.createElement('h4');
+      h.className = 'recipe-steps__heading';
+      h.textContent = block.text;
+      section.appendChild(h);
+    } else if (block.type === 'note') {
+      list = null;
+      const p = document.createElement('p');
+      p.className = 'recipe-steps__note';
+      p.textContent = block.text;
+      section.appendChild(p);
+    } else {
+      if (!list) {
+        list = document.createElement('ol');
+        list.className = 'recipe-steps';
+        section.appendChild(list);
+      }
+      const li = document.createElement('li');
+      li.className = 'recipe-step';
+      const label = document.createElement('label');
+      label.className = 'recipe-step__label';
+      const box = progressBoxEl(recipe.id, 's', block.key, progress.s.has(block.key));
+      const num = document.createElement('span');
+      num.className = 'recipe-step__num';
+      num.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.className = 'recipe-step__text';
+      text.textContent = block.text;
+      label.append(box, num, text);
+      li.appendChild(label);
+      li.classList.toggle('is-done', box.checked);
+      list.appendChild(li);
+    }
+  }
+  const counter = section.querySelector('[data-progress-count]');
+  if (counter) updateProgressCounter(counter);
+  section.querySelector('[data-progress-clear]')?.addEventListener('click', () => {
+    saveProgress(recipe.id, { i: new Set(), s: new Set() });
+    syncProgressUi(recipe.id);
+  });
+  return section;
+}
+
 /**
  * Der Zutaten-Abschnitt als EIN Element mit Rezept-ID, damit eine geaenderte
  * Zuordnung ihn an beiden Orten (Aufklapper und Detailspalte) als Ganzes neu
@@ -1331,6 +1428,18 @@ function ingredientsSectionEl(recipe) {
     quantity.textContent = scaleQuantityText(ing.quantity ?? '', factor) ?? '';
     item.appendChild(quantity);
     label.textContent = ing.name;
+    // „Schon dazugegeben": ein Haken pro Zutat, nur auf diesem Geraet gemerkt.
+    // IM Namen, nicht als eigene Spalte - das Gitter der Zeile hat drei Spalten,
+    // und textContent des Namens bleibt der Zutatenname.
+    const progress = loadProgress(recipe.id);
+    const ingKey = ingredientMatchKey(ing.name);
+    const box = progressBoxEl(recipe.id, 'i', ingKey, progress.i.has(ingKey));
+    label.prepend(box);
+    item.classList.toggle('is-done', box.checked);
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('button, a, input, select, textarea, [data-pantry-match]')) return;
+      box.click();
+    });
     item.appendChild(label);
     // Die Einkaufskategorie steht sonst NUR im Formular. Bei `read` deshalb
     // hier, wo der Tipp landet (Regel 9) - als Text, nicht als Auswahl.

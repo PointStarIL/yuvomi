@@ -3734,6 +3734,7 @@
         "emptyTitle": "Inga recept ännu",
         "emptyDescription": "Spara recept med ingredienser, anteckningar och länk.",
         "titlePlaceholder": "ex. Pasta Carbonara",
+        "clearProgress": "Rensa markeringar",
         "notesLabel": "Notering",
         "notesPlaceholder": "Valfritt...",
         "urlLabel": "Receptlänk",

@@ -3870,6 +3870,7 @@
         "emptyDescription": "재료, 메모, 링크와 함께 레시피를 저장하세요.",
         "emptyAction": "레시피 만들기",
         "titlePlaceholder": "예: 파스타 카르보나라",
+        "clearProgress": "체크 표시 지우기",
         "notesLabel": "메모",
         "notesPlaceholder": "선택 사항…",
         "urlLabel": "레시피 링크",

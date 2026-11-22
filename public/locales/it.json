@@ -3734,6 +3734,7 @@
         "emptyTitle": "Nessuna ricetta ancora",
         "emptyDescription": "Salva le ricette con ingredienti, note e link.",
         "titlePlaceholder": "es. Pasta alla Carbonara",
+        "clearProgress": "Cancella i segni di spunta",
         "notesLabel": "Note",
         "notesPlaceholder": "Opzionale...",
         "urlLabel": "Link ricetta",

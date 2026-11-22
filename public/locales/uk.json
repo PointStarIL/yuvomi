@@ -4004,6 +4004,7 @@
         "emptyTitle": "Немає рецептів",
         "emptyDescription": "Зберігай рецепти з інгредієнтами, примітками та посиланням.",
         "titlePlaceholder": "наприклад, Паста Карбонара",
+        "clearProgress": "Скинути позначки",
         "notesLabel": "Нотатки",
         "notesPlaceholder": "Необов'язково...",
         "urlLabel": "Посилання на рецепт",

@@ -3734,6 +3734,7 @@
         "emptyTitle": "Nenhuma receita ainda",
         "emptyDescription": "Guarda receitas com ingredientes, notas e link.",
         "titlePlaceholder": "ex. Massa à Carbonara",
+        "clearProgress": "Limpar marcações",
         "notesLabel": "Notas",
         "notesPlaceholder": "Opcional...",
         "urlLabel": "Link da receita",

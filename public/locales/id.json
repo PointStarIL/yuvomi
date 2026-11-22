@@ -3870,6 +3870,7 @@
         "emptyDescription": "Simpan resep dengan bahan, catatan, dan tautan.",
         "emptyAction": "Buat resep",
         "titlePlaceholder": "mis. Pasta Carbonara",
+        "clearProgress": "Hapus centang",
         "notesLabel": "Catatan",
         "notesPlaceholder": "Opsional…",
         "urlLabel": "Tautan resep",

@@ -4099,6 +4099,7 @@
         "emptyDescription": "Zapisuj przepisy ze składnikami, notatkami i linkiem.",
         "emptyAction": "Utwórz przepis",
         "titlePlaceholder": "np. Pasta Carbonara",
+        "clearProgress": "Wyczyść zaznaczenia",
         "notesLabel": "Notatki",
         "notesPlaceholder": "Opcjonalnie…",
         "urlLabel": "Link do przepisu",

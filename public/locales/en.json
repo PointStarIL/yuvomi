@@ -3851,6 +3851,7 @@
         "emptyTitle": "No recipes yet",
         "emptyDescription": "Save recipes with ingredients, notes and a link.",
         "titlePlaceholder": "e.g. Pasta Carbonara",
+        "clearProgress": "Clear checkmarks",
         "notesLabel": "Notes",
         "notesPlaceholder": "Optional...",
         "urlLabel": "Recipe link",

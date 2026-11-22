@@ -3851,6 +3851,7 @@
         "emptyTitle": "Chưa có công thức nào",
         "emptyDescription": "Lưu công thức kèm nguyên liệu, ghi chú và liên kết.",
         "titlePlaceholder": "ví dụ: Mì Carbonara",
+        "clearProgress": "Xóa dấu chọn",
         "notesLabel": "Ghi chú",
         "notesPlaceholder": "Tùy chọn...",
         "urlLabel": "Liên kết công thức",

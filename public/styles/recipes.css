@@ -679,3 +679,120 @@ button.recipe-detail__ingredient-match:hover {
   gap: var(--space-4);
   padding: 0;
 }
+
+
+/* ---- Preparation as a checklist: headings set apart, numbered steps with a
+ * checkbox, side notes as a quiet callout. Ticks are per device (recipe-steps.js). ---- */
+.recipe-check {
+  inline-size: 18px;
+  block-size: 18px;
+  margin: 0;
+  margin-inline-end: var(--space-2);
+  vertical-align: -3px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.recipe-detail__ingredient {
+  cursor: pointer;
+}
+
+.recipe-detail__ingredient.is-done .recipe-detail__ingredient-name,
+.recipe-detail__ingredient.is-done .recipe-detail__ingredient-quantity {
+  text-decoration: line-through;
+  color: var(--color-text-tertiary);
+}
+
+.recipe-detail__instructions {
+  gap: var(--space-2);
+}
+
+.recipe-progress__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.recipe-progress {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--type-caption);
+  color: var(--color-text-secondary);
+}
+
+.recipe-progress.is-complete {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.recipe-steps__heading {
+  margin: var(--space-3) 0 var(--space-1);
+  padding-block-end: var(--space-1);
+  border-block-end: var(--space-px) solid var(--color-border-subtle);
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.recipe-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+  counter-reset: recipe-step;
+}
+
+.recipe-step {
+  counter-increment: recipe-step;
+}
+
+.recipe-step__label {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.recipe-step__label:hover {
+  background-color: var(--color-surface-hover);
+}
+
+.recipe-step__label .recipe-check {
+  margin-block-start: 2px;
+}
+
+.recipe-step__num::before {
+  content: counter(recipe-step);
+  display: inline-block;
+  min-inline-size: 1.6em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent);
+}
+
+.recipe-step__text {
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+.recipe-step.is-done .recipe-step__text {
+  text-decoration: line-through;
+  color: var(--color-text-tertiary);
+}
+
+.recipe-steps__note {
+  margin: var(--space-1) 0;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-accent-subtle);
+  font-size: var(--type-caption);
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}

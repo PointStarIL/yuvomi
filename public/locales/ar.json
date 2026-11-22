@@ -4078,6 +4078,7 @@
         "emptyTitle": "لا توجد وصفات حتى الآن",
         "emptyDescription": "احفظ الوصفات مع المكونات والملاحظات والرابط.",
         "titlePlaceholder": "مثال: معكرونة كربونارا",
+        "clearProgress": "مسح العلامات",
         "notesLabel": "ملاحظات",
         "notesPlaceholder": "اختياري...",
         "urlLabel": "رابط الوصفة",

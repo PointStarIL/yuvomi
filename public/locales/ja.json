@@ -3734,6 +3734,7 @@
         "emptyTitle": "まだレシピがありません",
         "emptyDescription": "材料・メモ・リンクを添えてレシピを保存できます。",
         "titlePlaceholder": "例：パスタカルボナーラ",
+        "clearProgress": "チェックをクリア",
         "notesLabel": "メモ",
         "notesPlaceholder": "オプション...",
         "urlLabel": "レシピリンク",

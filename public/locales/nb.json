@@ -3851,6 +3851,7 @@
         "emptyTitle": "Ingen oppskrifter ennå",
         "emptyDescription": "Lagre oppskrifter med ingredienser, notater og en lenke.",
         "titlePlaceholder": "f.eks. Pasta Carbonara",
+        "clearProgress": "Fjern avmerkinger",
         "notesLabel": "Notater",
         "notesPlaceholder": "Valgfritt...",
         "urlLabel": "Oppskriftslenke",

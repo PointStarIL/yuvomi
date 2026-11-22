@@ -3734,6 +3734,7 @@
         "emptyTitle": "還沒有食譜",
         "emptyDescription": "儲存食譜，連同食材、備註和連結。",
         "titlePlaceholder": "例如：義大利麵卡邦尼",
+        "clearProgress": "清除勾選",
         "notesLabel": "備註",
         "notesPlaceholder": "可選...",
         "urlLabel": "食譜連結",

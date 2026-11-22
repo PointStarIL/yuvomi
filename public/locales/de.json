@@ -3870,6 +3870,7 @@
         "emptyDescription": "Speichere Rezepte mit Zutaten, Notizen und Link.",
         "emptyAction": "Rezept erstellen",
         "titlePlaceholder": "z. B. Pasta Carbonara",
+        "clearProgress": "Markierungen zurücksetzen",
         "notesLabel": "Notizen",
         "notesPlaceholder": "Optional…",
         "urlLabel": "Rezept-Link",

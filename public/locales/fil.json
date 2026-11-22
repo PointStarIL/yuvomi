@@ -3870,6 +3870,7 @@
         "emptyDescription": "Mag-save ng mga resipe na may sangkap, tala at link.",
         "emptyAction": "Gumawa ng resipe",
         "titlePlaceholder": "hal. Pasta Carbonara",
+        "clearProgress": "I-clear ang mga marka",
         "notesLabel": "Mga tala",
         "notesPlaceholder": "Opsyonal...",
         "urlLabel": "Link ng resipe",

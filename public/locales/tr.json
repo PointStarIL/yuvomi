@@ -3734,6 +3734,7 @@
         "emptyTitle": "Henüz tarif yok",
         "emptyDescription": "Tarifleri malzeme, not ve bağlantıyla kaydet.",
         "titlePlaceholder": "ör. Pasta Carbonara",
+        "clearProgress": "İşaretleri temizle",
         "notesLabel": "Notlar",
         "notesPlaceholder": "İsteğe bağlı...",
         "urlLabel": "Tarif bağlantısı",

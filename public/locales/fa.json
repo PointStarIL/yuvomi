@@ -3870,6 +3870,7 @@
         "emptyDescription": "دستورها را همراه مواد لازم، یادداشت و پیوند ذخیره کنید.",
         "emptyAction": "ایجاد دستور غذا",
         "titlePlaceholder": "مثلاً پاستا کاربونارا",
+        "clearProgress": "پاک کردن علامت‌ها",
         "notesLabel": "یادداشت‌ها",
         "notesPlaceholder": "اختیاری…",
         "urlLabel": "پیوند دستور غذا",
